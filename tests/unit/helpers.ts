@@ -10,7 +10,7 @@ export function credentials(): UserCredentials {
     name: 'Ana',
     email: 'ana@example.test',
     passwordHash: 'stored-hash',
-    role: UserRole.ATTENDANT,
+    roles: [UserRole.SECRETARY],
     createdAt: new Date('2026-01-01T00:00:00Z'),
   };
 }

@@ -12,17 +12,17 @@ describe('AuthService', () => {
     service = new AuthService(deps.repository, deps.passwords, deps.tokens);
   });
 
-  it.each([UserRole.ADMIN, UserRole.ATTENDANT])(
+  it.each([UserRole.ADMIN, UserRole.SECRETARY, UserRole.DOCTOR])(
     'autentica %s comparando senha com hash',
     async (role) => {
-      const user = { ...credentials(), role };
+      const user = { ...credentials(), roles: [role] };
       deps.repository.findByEmailWithPassword.mockResolvedValue(user);
       deps.passwords.compare.mockResolvedValue(true);
       deps.tokens.sign.mockReturnValue('issued-token');
 
       await expect(
         service.login({ email: ' ANA@EXAMPLE.TEST ', password: 'plain-password' }),
-      ).resolves.toEqual({ token: 'issued-token' });
+      ).resolves.toEqual({ accessToken: 'issued-token' });
       expect(deps.repository.findByEmailWithPassword).toHaveBeenCalledExactlyOnceWith(
         'ana@example.test',
       );
@@ -30,7 +30,7 @@ describe('AuthService', () => {
         'plain-password',
         'stored-hash',
       );
-      expect(deps.tokens.sign).toHaveBeenCalledExactlyOnceWith({ id: user.id, role });
+      expect(deps.tokens.sign).toHaveBeenCalledExactlyOnceWith({ id: user.id, roles: [role] });
     },
   );
 
@@ -38,7 +38,7 @@ describe('AuthService', () => {
     deps.repository.findByEmailWithPassword.mockResolvedValue(null);
     await expect(
       service.login({ email: 'missing@example.test', password: 'password' }),
-    ).rejects.toMatchObject({ statusCode: 401, message: 'Invalid credentials.' });
+    ).rejects.toMatchObject({ code: 'CREDENCIAIS_INVALIDAS' });
     expect(deps.passwords.compare).not.toHaveBeenCalled();
     expect(deps.tokens.sign).not.toHaveBeenCalled();
   });
@@ -48,7 +48,7 @@ describe('AuthService', () => {
     deps.passwords.compare.mockResolvedValue(false);
     await expect(
       service.login({ email: 'ana@example.test', password: 'incorrect' }),
-    ).rejects.toMatchObject({ statusCode: 401, message: 'Invalid credentials.' });
+    ).rejects.toMatchObject({ code: 'CREDENCIAIS_INVALIDAS' });
     expect(deps.passwords.compare).toHaveBeenCalledExactlyOnceWith('incorrect', 'stored-hash');
     expect(deps.tokens.sign).not.toHaveBeenCalled();
   });
@@ -65,7 +65,9 @@ describe('AuthService', () => {
     { email: '   ', password: 'password' },
     { email: 'ana@example.test', password: '' },
   ])('rejeita entrada inválida %j antes de consultar o repositório', async (input) => {
-    await expect(service.login(input as LoginDTO)).rejects.toMatchObject({ statusCode: 400 });
+    await expect(service.login(input as LoginDTO)).rejects.toMatchObject({
+      code: 'DADOS_INVALIDOS',
+    });
     expect(deps.repository.findByEmailWithPassword).not.toHaveBeenCalled();
     expect(deps.passwords.compare).not.toHaveBeenCalled();
     expect(deps.tokens.sign).not.toHaveBeenCalled();
