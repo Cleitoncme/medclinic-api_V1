@@ -1,11 +1,14 @@
 import type { CreateUserDTO, UserResponseDTO } from '../dtos/user.dto';
-import { User, UserRole } from '../entities/user.entity';
-import { UserRepository } from '../repositories/user.repository';
-import { hashPassword } from '../utils/password';
+import { type PublicUser, UserRole } from '../domain/user';
+import type { PasswordPort } from '../ports/password.port';
+import type { UserRepositoryPort } from '../ports/user-repository.port';
 import { AppError } from '../utils/app-error';
 
 export class UserService {
-  public constructor(private readonly userRepository: UserRepository) {}
+  public constructor(
+    private readonly userRepository: UserRepositoryPort,
+    private readonly passwords: PasswordPort,
+  ) {}
 
   public async register(userData: CreateUserDTO): Promise<UserResponseDTO> {
     this.validateRegistrationInput(userData);
@@ -21,7 +24,7 @@ export class UserService {
     const user = await this.userRepository.create({
       name,
       email,
-      passwordHash: await hashPassword(userData.password),
+      passwordHash: await this.passwords.hash(userData.password),
       role: UserRole.ATTENDANT,
     });
 
@@ -65,7 +68,7 @@ export class UserService {
     }
   }
 
-  private toResponseDTO(user: User): UserResponseDTO {
+  private toResponseDTO(user: PublicUser): UserResponseDTO {
     return {
       id: user.id,
       name: user.name,

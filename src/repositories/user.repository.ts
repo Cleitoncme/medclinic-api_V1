@@ -1,11 +1,13 @@
-import type { DeepPartial, Repository } from 'typeorm';
+import type { Repository } from 'typeorm';
 
 import { User } from '../entities/user.entity';
+import type { NewUser } from '../domain/user';
+import type { UserRepositoryPort } from '../ports/user-repository.port';
 
-export class UserRepository {
+export class UserRepository implements UserRepositoryPort {
   public constructor(private readonly repository: Repository<User>) {}
 
-  public async create(userData: DeepPartial<User>): Promise<User> {
+  public async create(userData: NewUser): Promise<User> {
     const user = this.repository.create(userData);
     return this.repository.save(user);
   }
