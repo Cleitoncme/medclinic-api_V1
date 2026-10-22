@@ -1,0 +1,29 @@
+name: Validacao de pull request
+
+on:
+  pull_request:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+jobs:
+  validacao:
+    name: validacao
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Compilar e executar testes de regressao
+        run: npm test
+      - name: Verificar lint
+        run: npm run lint
+      - name: Verificar formatacao
+        run: npm run format:check
+      # Issue #2: adicionar test:cov com limiar de 80% nas quatro metricas
+      # sobre a camada de negocio. A suite atual verifica a migracao NestJS.
