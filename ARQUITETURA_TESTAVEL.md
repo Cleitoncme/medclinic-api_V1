@@ -29,7 +29,7 @@ usam configuração real ao executar a API.
 
 ## Verificação de isolamento
 
-`npm test` compila e executa os testes de regressão HTTP e a verificação de
+`npm run test:regression` compila e executa os testes de regressão HTTP e a verificação de
 isolamento em `tests/services-isolation.test.cjs`. Esta última instancia services
 com dublês de repositório, senhas e token, sem definir variáveis ambientais, abrir
 conexão de banco, carregar adapters criptográficos ou iniciar um servidor HTTP.
@@ -37,7 +37,9 @@ conexão de banco, carregar adapters criptográficos ou iniciar um servidor HTTP
 Os dublês de senha/token não são mecanismos de segurança: só existem nos testes.
 Os testes de regressão continuam exercitando bcrypt e JWT reais por seus adapters.
 
-Esta etapa não instala executor de cobertura nem declara o limiar de 80% atingido.
-Vitest/Jest, a suíte completa dos caminhos de regra e `test:cov` são a segunda
-entrega. O tratamento atual por AppError e o contrato da etapa 1 permanecem; a
-tradução de erros de domínio e a adequação para /api/v1 seguem no planejamento.
+A etapa 2 adiciona Vitest e cobertura V8: npm test executa os unitários e
+npm run test:cov exige 80% nas quatro métricas sobre os sufixos de regra de negócio.
+O recorte e os comandos estão declarados no README. Os testes unitários usam
+dublês tipados e não dependem de variáveis de ambiente, rede ou banco.
+O tratamento atual por AppError e o contrato HTTP são preservados; a tradução
+de erros de domínio e a adequação para /api/v1 seguem no planejamento.
