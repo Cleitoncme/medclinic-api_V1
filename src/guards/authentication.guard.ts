@@ -2,33 +2,31 @@ import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/com
 import type { Request } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
-import { UserRole } from '../entities/user.entity';
-import { AppError } from '../utils/app-error';
-
+import { isRoles } from '../rules/user-roles.rules';
+import { DomainError } from '../domain/domain-error';
 @Injectable()
 export class AuthenticationGuard implements CanActivate {
-  public canActivate(context: ExecutionContext): boolean {
+  canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
     const authorization = request.headers.authorization;
-    if (!authorization?.startsWith('Bearer ')) {
-      throw new AppError(401, 'Authentication token is required.');
-    }
-
+    if (!authorization?.startsWith('Bearer '))
+      throw new DomainError('NAO_AUTENTICADO', 'Token obrigatório.');
     try {
-      const token = authorization.slice('Bearer '.length).trim();
-      const payload = jwt.verify(token, env.jwt.secret);
+      const payload = jwt.verify(authorization.slice(7).trim(), env.jwt.secret, {
+        algorithms: ['HS256'],
+      });
       if (
         typeof payload === 'string' ||
         typeof payload.id !== 'string' ||
         !payload.id ||
-        (payload.role !== UserRole.ADMIN && payload.role !== UserRole.ATTENDANT)
-      ) {
-        throw new Error('Invalid token payload.');
-      }
-      request.auth = { id: payload.id, role: payload.role };
+        !isRoles(payload.roles) ||
+        typeof payload.exp !== 'number'
+      )
+        throw new Error('Payload inválido.');
+      request.auth = { id: payload.id, roles: payload.roles };
       return true;
     } catch {
-      throw new AppError(401, 'Authentication token is invalid or expired.');
+      throw new DomainError('NAO_AUTENTICADO', 'Token inválido ou expirado.');
     }
   }
 }

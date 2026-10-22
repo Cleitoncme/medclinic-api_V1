@@ -7,9 +7,9 @@ export interface LoginDTO {
 
 export interface AuthTokenPayload {
   id: string;
-  role: UserRole;
+  roles: UserRole[];
 }
 
 export interface LoginResponseDTO {
-  token: string;
+  accessToken: string;
 }

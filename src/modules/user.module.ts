@@ -3,6 +3,7 @@ import { DataSource } from 'typeorm';
 import { UserController } from '../controllers/user.controller';
 import { DatabaseModule } from '../database/database.module';
 import { User } from '../entities/user.entity';
+import { RolesGuard } from '../guards/roles.guard';
 import { AuthenticationGuard } from '../guards/authentication.guard';
 import { UserRepository } from '../repositories/user.repository';
 import { PASSWORD_SERVICE, type PasswordPort } from '../ports/password.port';
@@ -15,6 +16,7 @@ import { SecurityModule } from './security.module';
   controllers: [UserController],
   providers: [
     AuthenticationGuard,
+    RolesGuard,
     {
       provide: USER_REPOSITORY,
       useFactory: (source: DataSource) => new UserRepository(source.getRepository(User)),

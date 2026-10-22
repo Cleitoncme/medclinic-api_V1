@@ -1,23 +1,21 @@
 export enum UserRole {
-  ADMIN = 'ADMIN',
-  ATTENDANT = 'ATTENDANT',
+  ADMIN = 'admin',
+  SECRETARY = 'secretary',
+  DOCTOR = 'doctor',
 }
-
 export interface PublicUser {
   id: string;
   name: string;
   email: string;
-  role: UserRole;
+  roles: UserRole[];
   createdAt: Date;
 }
-
 export interface UserCredentials extends PublicUser {
   passwordHash: string;
 }
-
 export interface NewUser {
   name: string;
   email: string;
   passwordHash: string;
-  role: UserRole;
+  roles: UserRole[];
 }

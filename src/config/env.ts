@@ -36,6 +36,10 @@ function getPort(value: string | undefined, fallback: number): number {
   return port;
 }
 
+const jwtExpiresIn = process.env.JWT_EXPIRES_IN ?? '1h';
+if (!/^[1-9]\d*(s|m|h|d)$/.test(jwtExpiresIn)) {
+  throw new Error('JWT_EXPIRES_IN deve ser uma duração positiva, por exemplo 1h.');
+}
 export const env: EnvironmentConfig = {
   port: getPort(process.env.PORT, 3000),
   database: {
@@ -47,6 +51,6 @@ export const env: EnvironmentConfig = {
   },
   jwt: {
     secret: getRequiredEnvironmentVariable('JWT_SECRET'),
-    expiresIn: process.env.JWT_EXPIRES_IN ?? '1h',
+    expiresIn: jwtExpiresIn,
   },
 };
