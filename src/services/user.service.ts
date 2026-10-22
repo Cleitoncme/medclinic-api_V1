@@ -1,80 +1,74 @@
 import type { CreateUserDTO, UserResponseDTO } from '../dtos/user.dto';
 import { type PublicUser, UserRole } from '../domain/user';
+import { isRoles } from '../rules/user-roles.rules';
 import type { PasswordPort } from '../ports/password.port';
 import type { UserRepositoryPort } from '../ports/user-repository.port';
-import { AppError } from '../utils/app-error';
-
+import { DomainError } from '../domain/domain-error';
 export class UserService {
-  public constructor(
+  constructor(
     private readonly userRepository: UserRepositoryPort,
     private readonly passwords: PasswordPort,
   ) {}
-
-  public async register(userData: CreateUserDTO): Promise<UserResponseDTO> {
-    this.validateRegistrationInput(userData);
-
-    const name = userData.name.trim();
-    const email = userData.email.trim().toLowerCase();
-
-    const existingUser = await this.userRepository.findByEmail(email);
-    if (existingUser) {
-      throw new AppError(409, 'Email is already registered.');
-    }
-
-    const user = await this.userRepository.create({
-      name,
-      email,
-      passwordHash: await this.passwords.hash(userData.password),
-      role: UserRole.ATTENDANT,
-    });
-
-    return this.toResponseDTO(user);
+  async create(input: CreateUserDTO): Promise<UserResponseDTO> {
+    this.validate(input);
+    const email = input.email.trim().toLowerCase();
+    if (await this.userRepository.findByEmail(email))
+      throw new DomainError('EMAIL_JA_CADASTRADO', 'E-mail já cadastrado.');
+    return this.toResponse(
+      await this.userRepository.create({
+        name: input.name.trim(),
+        email,
+        passwordHash: await this.passwords.hash(input.password),
+        roles: [...new Set(input.roles)],
+      }),
+    );
   }
-
-  public async getById(id: string): Promise<UserResponseDTO> {
+  async getById(id: string): Promise<UserResponseDTO> {
     const user = await this.userRepository.findById(id);
-    if (!user) {
-      throw new AppError(404, 'Authenticated user was not found.');
-    }
-
-    return this.toResponseDTO(user);
+    if (!user) throw new DomainError('RECURSO_NAO_ENCONTRADO', 'Usuário não encontrado.');
+    return this.toResponse(user);
   }
-
-  private validateRegistrationInput(userData: CreateUserDTO): void {
+  async ensureAdmin(input: Omit<CreateUserDTO, 'roles'>): Promise<boolean> {
+    const admin = { ...input, roles: [UserRole.ADMIN] };
+    this.validate(admin);
+    const existing = await this.userRepository.findByEmail(admin.email.trim().toLowerCase());
+    if (existing) {
+      if (!existing.roles.includes(UserRole.ADMIN))
+        throw new DomainError(
+          'ACESSO_NEGADO',
+          'O e-mail do seed pertence a um usuário sem perfil admin. Nenhum privilégio foi alterado.',
+        );
+      return false;
+    }
+    await this.create(admin);
+    return true;
+  }
+  private validate(input: CreateUserDTO): void {
     if (
-      typeof userData !== 'object' ||
-      userData === null ||
-      Array.isArray(userData) ||
-      typeof userData.name !== 'string' ||
-      typeof userData.email !== 'string' ||
-      typeof userData.password !== 'string'
-    ) {
-      throw new AppError(400, 'Name, email and password are required.');
-    }
-
-    const name = userData.name.trim();
-    const email = userData.email.trim();
-
-    if (!name || !email || !userData.password) {
-      throw new AppError(400, 'Name, email and password are required.');
-    }
-
-    if (!/^\S+@\S+\.\S+$/.test(email)) {
-      throw new AppError(400, 'Email must have a valid format.');
-    }
-
-    if (userData.password.length < 8) {
-      throw new AppError(400, 'Password must contain at least 8 characters.');
-    }
+      typeof input !== 'object' ||
+      input === null ||
+      Array.isArray(input) ||
+      typeof input.name !== 'string' ||
+      typeof input.email !== 'string' ||
+      typeof input.password !== 'string' ||
+      !input.name.trim() ||
+      !input.email.trim() ||
+      !input.password
+    )
+      throw new DomainError('DADOS_INVALIDOS', 'Nome, e-mail e senha são obrigatórios.');
+    if (
+      input.name.trim().length > 120 ||
+      input.email.trim().length > 160 ||
+      !/^\S+@\S+\.\S+$/.test(input.email.trim())
+    )
+      throw new DomainError('DADOS_INVALIDOS', 'Nome ou e-mail inválido.');
+    if (input.password.length < 8 || !isRoles(input.roles))
+      throw new DomainError(
+        'DADOS_INVALIDOS',
+        'Senha deve ter ao menos oito caracteres e roles deve conter perfis válidos.',
+      );
   }
-
-  private toResponseDTO(user: PublicUser): UserResponseDTO {
-    return {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      createdAt: user.createdAt,
-    };
+  private toResponse(user: PublicUser): UserResponseDTO {
+    return { id: user.id, name: user.name, email: user.email, roles: [...user.roles] };
   }
 }

@@ -18,8 +18,8 @@ export class User {
   @Column({ name: 'password_hash', type: 'varchar', length: 255, select: false })
   passwordHash!: string;
 
-  @Column({ type: 'enum', enum: UserRole, default: UserRole.ATTENDANT })
-  role!: UserRole;
+  @Column({ type: 'enum', enum: UserRole, enumName: 'users_roles_enum', array: true })
+  roles!: UserRole[];
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;

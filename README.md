@@ -53,3 +53,34 @@ junto dessas funcionalidades. A cobertura atual não comprova regras ainda não 
 
 Em PRs para develop e main, o job validacao compila, roda a regressão, verifica os
 tipos, executa test:cov e confere lint e formatação. O nome do check permanece estável.
+
+## Autenticação no contrato final
+
+GET `/api/v1/health` é público. POST `/api/v1/auth/login` recebe email/password
+e devolve `{ accessToken }`. GET `/api/v1/users/me` devolve id/name/email/roles
+diretamente. POST `/api/v1/users` exige Bearer de admin e recebe name/email/password/roles.
+Perfis válidos: admin, secretary, doctor, em array não vazio; múltiplos perfis são
+aceitos. O cadastro público foi removido. Nunca são devolvidos senha ou hash.
+
+Execute `npm run migration:run` antes de iniciar a API e depois `npm run seed:admin`,
+com ADMIN_NAME, ADMIN_EMAIL e ADMIN_PASSWORD no ambiente. O seed é idempotente
+para admin existente e falha para e-mail de não administrador, sem elevar privilégios.
+A senha existente não é substituída. Use senha com pelo menos oito caracteres.
+
+A migration incremental converte ADMIN para admin e ATTENDANT para secretary,
+preserva UUIDs e credenciais e troca role por roles (enum array PostgreSQL).
+UUIDs existentes foram mantidos: o documento mostra IDs numéricos nos exemplos,
+mas não impõe conversão. Tokens antigos devem ser descartados após a atualização.
+O rollback recusa dados com doctor ou múltiplos perfis para evitar perda silenciosa.
+Arquivos de migration têm nomes descritivos, mantendo timestamp no identificador interno.
+
+O envelope de erro é `{ statusCode, error, message }`, com mensagem em português.
+DomainError não contém status HTTP; o filtro central faz a tradução, inclusive
+violação concorrente da constraint UQ_users_email para EMAIL_JA_CADASTRADO.
+Decisão provisória: falhas inesperadas usam 500/ERRO_INTERNO, pois o documento
+exige envelope 500 e não lista código correspondente. Detalhes internos não são expostos.
+
+JWT_EXPIRES_IN aceita duração positiva com unidade s/m/h/d, padrão 1h.
+No Docker local criado para este projeto, o PostgreSQL usa localhost:5434;
+configure as demais variáveis conforme .env.example. Segredos reais não são versionados.
+Os helpers parsePagination/paginated preparam o contrato de listagem dos próximos módulos.

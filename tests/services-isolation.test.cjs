@@ -47,22 +47,23 @@ test('services register, authenticate and read a user using only injected double
   const deps = dependencies();
   const users = new UserService(deps.repository, deps.passwords);
   const auth = new AuthService(deps.repository, deps.passwords, deps.tokens);
-  const registered = await users.register({
+  const registered = await users.create({
     name: ' Ana ',
     email: ' ANA@EXAMPLE.TEST ',
     password: 'test-password',
+    roles: [UserRole.SECRETARY],
   });
 
   assert.equal(registered.name, 'Ana');
   assert.equal(registered.email, 'ana@example.test');
-  assert.equal(registered.role, UserRole.ATTENDANT);
+  assert.equal(registered.roles[0], UserRole.SECRETARY);
   assert.equal(registered.passwordHash, undefined);
   assert.equal(deps.users[0].passwordHash, 'double:test-password');
   assert.deepEqual(await auth.login({ email: 'ANA@EXAMPLE.TEST', password: 'test-password' }), {
-    token: 'issued-by-double',
+    accessToken: 'issued-by-double',
   });
   assert.deepEqual(deps.comparisons, [{ value: 'test-password', digest: 'double:test-password' }]);
-  assert.deepEqual(deps.signed, [{ id: registered.id, role: UserRole.ATTENDANT }]);
+  assert.deepEqual(deps.signed, [{ id: registered.id, roles: [UserRole.SECRETARY] }]);
   assert.deepEqual(await users.getById(registered.id), registered);
 });
 
@@ -70,14 +71,19 @@ test('authentication refuses missing users or failed comparisons without issuing
   const deps = dependencies();
   const users = new UserService(deps.repository, deps.passwords);
   const auth = new AuthService(deps.repository, deps.passwords, deps.tokens);
-  const rejectsCredentials = { statusCode: 401, message: 'Invalid credentials.' };
+  const rejectsCredentials = { code: 'CREDENCIAIS_INVALIDAS' };
 
   await assert.rejects(
     auth.login({ email: 'missing@example.test', password: 'test-password' }),
     rejectsCredentials,
   );
   assert.equal(deps.comparisons.length, 0);
-  await users.register({ name: 'Ana', email: 'ana@example.test', password: 'test-password' });
+  await users.create({
+    name: 'Ana',
+    email: 'ana@example.test',
+    password: 'test-password',
+    roles: [UserRole.SECRETARY],
+  });
   await assert.rejects(
     auth.login({ email: 'ana@example.test', password: 'incorrect' }),
     rejectsCredentials,
