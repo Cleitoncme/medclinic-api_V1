@@ -1,13 +1,15 @@
-import jwt, { type SignOptions } from 'jsonwebtoken';
-
 import type { AuthTokenPayload, LoginDTO, LoginResponseDTO } from '../dtos/auth.dto';
-import { env } from '../config/env';
-import { UserRepository } from '../repositories/user.repository';
-import { comparePassword } from '../utils/password';
+import type { PasswordPort } from '../ports/password.port';
+import type { TokenIssuerPort } from '../ports/token-issuer.port';
+import type { UserRepositoryPort } from '../ports/user-repository.port';
 import { AppError } from '../utils/app-error';
 
 export class AuthService {
-  public constructor(private readonly userRepository: UserRepository) {}
+  public constructor(
+    private readonly userRepository: UserRepositoryPort,
+    private readonly passwords: PasswordPort,
+    private readonly tokens: TokenIssuerPort,
+  ) {}
 
   public async login(credentials: LoginDTO): Promise<LoginResponseDTO> {
     this.validateLoginInput(credentials);
@@ -15,14 +17,12 @@ export class AuthService {
     const email = credentials.email.trim().toLowerCase();
     const user = await this.userRepository.findByEmailWithPassword(email);
 
-    if (!user || !(await comparePassword(credentials.password, user.passwordHash))) {
+    if (!user || !(await this.passwords.compare(credentials.password, user.passwordHash))) {
       throw new AppError(401, 'Invalid credentials.');
     }
 
     const payload: AuthTokenPayload = { id: user.id, role: user.role };
-    const options: SignOptions = { expiresIn: env.jwt.expiresIn as SignOptions['expiresIn'] };
-
-    return { token: jwt.sign(payload, env.jwt.secret, options) };
+    return { token: this.tokens.sign(payload) };
   }
 
   private validateLoginInput(credentials: LoginDTO): void {

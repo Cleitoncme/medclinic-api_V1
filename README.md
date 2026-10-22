@@ -20,3 +20,7 @@ Os testes unitÃ¡rios com cobertura mÃ­nima de 80% nas quatro mÃ©tricas ain
 implementados na issue #2; o check atual nÃ£o comprova essa cobertura.
 
 Board pÃºblico: https://github.com/users/Cleitoncme/projects/2.
+
+## Arquitetura para testes
+
+Consulte [ARQUITETURA_TESTAVEL.md](ARQUITETURA_TESTAVEL.md) para interfaces, adapters e testes de isolamento. A cobertura de 80% permanece na segunda entrega.
