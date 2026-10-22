@@ -20,10 +20,12 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
       - name: Compilar e executar testes de regressao
-        run: npm test
+        run: npm run test:regression
+      - name: Verificar tipos dos testes unitarios
+        run: npm run test:typecheck
+      - name: Testes unitarios e cobertura minima de 80%
+        run: npm run test:cov
       - name: Verificar lint
         run: npm run lint
       - name: Verificar formatacao
         run: npm run format:check
-      # Issue #2: adicionar test:cov com limiar de 80% nas quatro metricas
-      # sobre a camada de negocio. A suite atual verifica a migracao NestJS.
