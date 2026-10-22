@@ -41,5 +41,5 @@ A etapa 2 adiciona Vitest e cobertura V8: npm test executa os unitários e
 npm run test:cov exige 80% nas quatro métricas sobre os sufixos de regra de negócio.
 O recorte e os comandos estão declarados no README. Os testes unitários usam
 dublês tipados e não dependem de variáveis de ambiente, rede ou banco.
-O tratamento atual por AppError e o contrato HTTP são preservados; a tradução
-de erros de domínio e a adequação para /api/v1 seguem no planejamento.
+Os services lançam DomainError com código de negócio; apenas AppExceptionFilter
+traduz esses códigos em status HTTP. O contrato atual usa /api/v1 e roles.
