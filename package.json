@@ -1,0 +1,48 @@
+{
+  "name": "medclinic-api",
+  "version": "1.0.0",
+  "description": "API de autenticação e autorização para uma clínica médica.",
+  "private": true,
+  "scripts": {
+    "dev": "tsc --watch",
+    "start:dev": "npm run build && node --watch dist/main.js",
+    "build": "tsc",
+    "start": "node dist/main.js",
+    "test": "npm run build && node --test tests/*.test.cjs",
+    "seed:admin": "npm run build && node dist/database/seed-admin.js",
+    "migration:run": "npm run build && typeorm migration:run -d dist/database/data-source.js",
+    "migration:revert": "npm run build && typeorm migration:revert -d dist/database/data-source.js",
+    "lint": "eslint src",
+    "format:check": "prettier --check .",
+    "format": "prettier --write ."
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "rxjs": "^7.8.1",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.23.0",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "^1.1.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^22.20.2",
+    "eslint": "^10.10.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.6",
+    "tsx": "^4.23.13",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.70.0"
+  }
+}
