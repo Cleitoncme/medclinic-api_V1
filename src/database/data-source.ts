@@ -1,6 +1,8 @@
 import 'reflect-metadata';
 
 import { DataSource } from 'typeorm';
+import { PatientEntity } from '../entities/patient.entity';
+import { CreatePatientsTable1792785600000 } from './migrations/create-patients-table';
 
 import { MigrateUserRoles1792670400000 } from './migrations/migrate-user-roles';
 import { env } from '../config/env';
@@ -18,6 +20,10 @@ export const appDataSource = new DataSource({
   database: env.database.name,
   synchronize: false,
   logging: false,
-  entities: [User],
-  migrations: [CreateUsersTable1726000000000, MigrateUserRoles1792670400000],
+  entities: [User, PatientEntity],
+  migrations: [
+    CreateUsersTable1726000000000,
+    MigrateUserRoles1792670400000,
+    CreatePatientsTable1792785600000,
+  ],
 });

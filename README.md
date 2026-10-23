@@ -91,3 +91,45 @@ Consulte [PUBLICACAO_CLOUD_RUN.md](PUBLICACAO_CLOUD_RUN.md) para build, teste lo
 SSL, migrations/seed na inicialização, configuração do GitHub e infraestrutura pendente.
 O workflow publica apenas por push em main. A nuvem ainda não foi provisionada: o
 usuário definiu orçamento zero e a configuração externa precisa respeitar esse limite.
+
+## Pacientes
+
+Rotas sob /api/v1, todas com Authorization Bearer:
+
+| Método | Rota          | Perfis               | Resultado                   |
+| ------ | ------------- | -------------------- | --------------------------- |
+| POST   | /patients     | admin, secretary     | 201 com paciente            |
+| GET    | /patients     | qualquer autenticado | 200 com data/meta           |
+| GET    | /patients/:id | qualquer autenticado | 200 com paciente            |
+| PATCH  | /patients/:id | admin, secretary     | 200 com paciente atualizado |
+| DELETE | /patients/:id | admin                | 204 sem corpo               |
+
+O cadastro recebe name e cpf. CPF é string de exatamente 11 dígitos, sem
+pontuação; zeros iniciais são preservados. Não se exige cálculo de dígito
+verificador. Nome é obrigatório, aparado nas extremidades e limitado a 120
+caracteres. As respostas contêm id numérico positivo, name, cpf e createdAt UTC.
+O PATCH aceita somente name; tentativa de alterar CPF é recusada com 400.
+
+A listagem aceita page (padrão 1), pageSize (padrão 20, máximo 100) e name
+(substring sem diferenciar maiúsculas). A ordenação por id crescente é estável.
+Os caracteres %, _ e barra invertida no filtro são tratados literalmente;
+consulta parametrizada evita interpretar o nome como SQL. Entradas inválidas
+retornam 400 DADOS_INVALIDOS; inexistentes retornam 404 RECURSO_NAO_ENCONTRADO.
+
+A exclusão é lógica: deletedAt permanece no banco, sem aparecer nas respostas.
+Removidos não aparecem na listagem, consulta nem alteração; remover novamente
+retorna 404. O CPF continua reservado, inclusive após exclusão, para preservar
+a unicidade global de RN02 e o histórico usado pelos módulos clínicos futuros.
+UQ_patients_cpf impede duplicação inclusive em requisições concorrentes; o
+filtro central traduz a violação em 409 CPF_JA_CADASTRADO.
+
+Execute npm run migration:run antes de iniciar a API fora do container.
+No Docker, o entrypoint aplica a migration incremental create-patients-table
+automaticamente. Não há synchronize. IDs numéricos são usados em pacientes,
+seguindo os exemplos do contrato; UUIDs existentes de usuários são preservados.
+
+Os testes unitários usam dublês tipados de PatientRepositoryPort, sem banco,
+rede ou ambiente. A regressão HTTP cobre permissões, status e envelopes. O
+script opcional scripts/smoke-docker.cjs valida em PostgreSQL temporário o CRUD,
+filtros, paginação, remoção lógica e CPF simultâneo em duas réplicas (201/409).
+A publicação na nuvem continua acompanhada pelo card #5, independentemente deste módulo.

@@ -4,7 +4,8 @@ export type ErrorCode =
   | 'CREDENCIAIS_INVALIDAS'
   | 'ACESSO_NEGADO'
   | 'RECURSO_NAO_ENCONTRADO'
-  | 'EMAIL_JA_CADASTRADO';
+  | 'EMAIL_JA_CADASTRADO'
+  | 'CPF_JA_CADASTRADO';
 export class DomainError extends Error {
   constructor(
     public readonly code: ErrorCode,

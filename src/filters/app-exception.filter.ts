@@ -15,6 +15,7 @@ const statuses: Record<ErrorCode, number> = {
   ACESSO_NEGADO: 403,
   RECURSO_NAO_ENCONTRADO: 404,
   EMAIL_JA_CADASTRADO: 409,
+  CPF_JA_CADASTRADO: 409,
 };
 @Catch()
 export class AppExceptionFilter implements ExceptionFilter {
@@ -42,11 +43,14 @@ export class AppExceptionFilter implements ExceptionFilter {
       exception instanceof QueryFailedError &&
       exception.driverError &&
       Reflect.get(exception.driverError, 'code') === '23505' &&
-      Reflect.get(exception.driverError, 'constraint') === 'UQ_users_email'
+      ['UQ_users_email', 'UQ_patients_cpf'].includes(
+        String(Reflect.get(exception.driverError, 'constraint')),
+      )
     ) {
       statusCode = 409;
-      error = 'EMAIL_JA_CADASTRADO';
-      message = 'E-mail já cadastrado.';
+      const patientCpf = Reflect.get(exception.driverError, 'constraint') === 'UQ_patients_cpf';
+      error = patientCpf ? 'CPF_JA_CADASTRADO' : 'EMAIL_JA_CADASTRADO';
+      message = patientCpf ? 'CPF já cadastrado.' : 'E-mail já cadastrado.';
     } else {
       this.logger.error(
         'Falha inesperada.',
