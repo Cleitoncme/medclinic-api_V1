@@ -4,10 +4,11 @@ import { HealthController } from './controllers/health.controller';
 import { AppExceptionFilter } from './filters/app-exception.filter';
 import { AdminModule } from './modules/admin.module';
 import { AuthModule } from './modules/auth.module';
+import { PatientModule } from './modules/patient.module';
 import { UserModule } from './modules/user.module';
 
 @Module({
-  imports: [UserModule, AuthModule, AdminModule],
+  imports: [UserModule, AuthModule, AdminModule, PatientModule],
   controllers: [HealthController],
   providers: [{ provide: APP_FILTER, useClass: AppExceptionFilter }],
 })
