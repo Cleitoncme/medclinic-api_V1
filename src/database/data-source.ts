@@ -13,6 +13,8 @@ export const appDataSource = new DataSource({
   port: env.database.port,
   username: env.database.user,
   password: env.database.password,
+  ssl: env.database.ssl,
+  connectTimeoutMS: 10000,
   database: env.database.name,
   synchronize: false,
   logging: false,
