@@ -134,7 +134,7 @@ async function main() {
         '-tAc',
         'SELECT count(*) FROM migrations',
       ),
-      '2',
+      '3',
     );
     assert.equal(
       docker(
@@ -157,6 +157,109 @@ async function main() {
       '-e',
       "const assert=require('node:assert/strict');const fs=require('node:fs');assert.notEqual(process.getuid(),0);for(const x of ['typescript','vitest'])assert.throws(()=>require.resolve(x));for(const x of ['.env','tests','src'])assert.equal(fs.existsSync(x),false);",
     );
+
+    const jwt = require('jsonwebtoken');
+    const patientToken = (roles) =>
+      jwt.sign({ id: 'smoke-user', roles }, jwtSecret, { expiresIn: '1h' });
+    async function patientRequest(method, path = '', body, roles = ['admin'], server = 0) {
+      return fetch(urls[server] + '/api/v1/patients' + path, {
+        method,
+        headers: {
+          'content-type': 'application/json',
+          ...(roles ? { authorization: 'Bearer ' + patientToken(roles) } : {}),
+        },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+    }
+    const creation = await patientRequest(
+      'POST',
+      '',
+      { name: ' Carlos Silva ', cpf: '00123456789' },
+      ['secretary'],
+    );
+    assert.equal(creation.status, 201);
+    const created = await creation.json();
+    assert.equal(typeof created.id, 'number');
+    assert.equal(created.cpf, '00123456789');
+    assert.equal(created.name, 'Carlos Silva');
+    assert.ok(created.createdAt.endsWith('Z'));
+    assert.equal(
+      (await patientRequest('POST', '', { name: 'Blocked', cpf: '11111111111' }, ['doctor']))
+        .status,
+      403,
+    );
+    assert.equal((await patientRequest('GET', '', undefined, null)).status, 401);
+    assert.equal(
+      (await patientRequest('GET', '/' + created.id, undefined, ['doctor'], 1)).status,
+      200,
+    );
+    const found = await patientRequest('GET', '?name=SiLvA&page=1&pageSize=1', undefined, [
+      'doctor',
+    ]);
+    assert.equal(found.status, 200);
+    const listing = await found.json();
+    assert.equal(listing.data.length, 1);
+    assert.deepEqual(listing.meta, { total: 1, page: 1, pageSize: 1, totalPages: 1 });
+    const literalName = 'Literal 100%_\\ value';
+    assert.equal(
+      (await patientRequest('POST', '', { name: literalName, cpf: '11111111111' })).status,
+      201,
+    );
+    const literal = await patientRequest('GET', '?name=' + encodeURIComponent('%_\\'));
+    assert.equal((await literal.json()).meta.total, 1);
+    const injection = await patientRequest('GET', '?name=' + encodeURIComponent("' OR 1=1 --"));
+    assert.equal((await injection.json()).meta.total, 0);
+    const parallel = await Promise.all(
+      [0, 1].map((server) =>
+        patientRequest('POST', '', { name: 'Parallel', cpf: '22222222222' }, ['secretary'], server),
+      ),
+    );
+    assert.deepEqual(parallel.map((r) => r.status).sort(), [201, 409]);
+    assert.equal((await parallel.find((r) => r.status === 409).json()).error, 'CPF_JA_CADASTRADO');
+    const nextPage = await patientRequest('GET', '?page=2&pageSize=1');
+    const nextBody = await nextPage.json();
+    assert.equal(nextBody.meta.total, 3);
+    assert.equal(nextBody.data.length, 1);
+    assert.notEqual(nextBody.data[0].id, created.id);
+    const rename = await patientRequest('PATCH', '/' + created.id, { name: 'Atualizado' }, [
+      'secretary',
+    ]);
+    assert.equal(rename.status, 200);
+    assert.equal((await rename.json()).cpf, created.cpf);
+    assert.equal(
+      (await patientRequest('DELETE', '/' + created.id, undefined, ['secretary'])).status,
+      403,
+    );
+    const removal = await patientRequest('DELETE', '/' + created.id);
+    assert.equal(removal.status, 204);
+    assert.equal(await removal.text(), '');
+    assert.equal((await patientRequest('GET', '/' + created.id)).status, 404);
+    assert.equal((await patientRequest('PATCH', '/' + created.id, { name: 'Revive' })).status, 404);
+    assert.equal((await patientRequest('DELETE', '/' + created.id)).status, 404);
+    assert.equal(
+      (await patientRequest('POST', '', { name: 'Reserved', cpf: created.cpf })).status,
+      409,
+    );
+    const active = await patientRequest('GET', '');
+    assert.equal((await active.json()).meta.total, 2);
+    assert.equal(
+      docker(
+        'exec',
+        database,
+        'psql',
+        '-U',
+        'postgres',
+        '-d',
+        'medclinic',
+        '-tAc',
+        'SELECT count(*) FROM patients WHERE deleted_at IS NOT NULL',
+      ),
+      '1',
+    );
+    console.log(
+      'OK: pacientes CRUD, CPF com zeros, filtro literal sem injecao, paginacao, permissoes, soft delete e CPF concorrente 201/409.',
+    );
+
     docker('restart', apps[0]);
     await waitFor(
       async () => (await login(`http://${docker('port', apps[0], '8080/tcp')}`)).ok,
