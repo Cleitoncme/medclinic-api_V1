@@ -29,3 +29,5 @@ jobs:
         run: npm run lint
       - name: Verificar formatacao
         run: npm run format:check
+      - name: Verificar imagem Docker
+        run: docker build --tag medclinic-api-v1:pr .

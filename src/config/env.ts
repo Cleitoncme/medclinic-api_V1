@@ -8,6 +8,7 @@ interface EnvironmentConfig {
     name: string;
     user: string;
     password: string;
+    ssl: false | { rejectUnauthorized: true; ca?: string };
   };
   jwt: {
     secret: string;
@@ -40,6 +41,11 @@ const jwtExpiresIn = process.env.JWT_EXPIRES_IN ?? '1h';
 if (!/^[1-9]\d*(s|m|h|d)$/.test(jwtExpiresIn)) {
   throw new Error('JWT_EXPIRES_IN deve ser uma duração positiva, por exemplo 1h.');
 }
+const databaseSsl = process.env.DATABASE_SSL ?? String(process.env.NODE_ENV === 'production');
+if (databaseSsl !== 'true' && databaseSsl !== 'false') {
+  throw new Error('DATABASE_SSL deve ser true ou false.');
+}
+const databaseCa = process.env.DATABASE_SSL_CA?.replace(/\\n/g, '\n');
 export const env: EnvironmentConfig = {
   port: getPort(process.env.PORT, 3000),
   database: {
@@ -48,6 +54,10 @@ export const env: EnvironmentConfig = {
     name: getRequiredEnvironmentVariable('DATABASE_NAME'),
     user: getRequiredEnvironmentVariable('DATABASE_USER'),
     password: getRequiredEnvironmentVariable('DATABASE_PASSWORD'),
+    ssl:
+      databaseSsl === 'true'
+        ? { rejectUnauthorized: true, ...(databaseCa ? { ca: databaseCa } : {}) }
+        : false,
   },
   jwt: {
     secret: getRequiredEnvironmentVariable('JWT_SECRET'),

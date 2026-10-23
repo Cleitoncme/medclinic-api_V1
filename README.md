@@ -84,3 +84,10 @@ JWT_EXPIRES_IN aceita duração positiva com unidade s/m/h/d, padrão 1h.
 No Docker local criado para este projeto, o PostgreSQL usa localhost:5434;
 configure as demais variáveis conforme .env.example. Segredos reais não são versionados.
 Os helpers parsePagination/paginated preparam o contrato de listagem dos próximos módulos.
+
+## Docker e publicação no Cloud Run
+
+Consulte [PUBLICACAO_CLOUD_RUN.md](PUBLICACAO_CLOUD_RUN.md) para build, teste local,
+SSL, migrations/seed na inicialização, configuração do GitHub e infraestrutura pendente.
+O workflow publica apenas por push em main. A nuvem ainda não foi provisionada: o
+usuário definiu orçamento zero e a configuração externa precisa respeitar esse limite.
