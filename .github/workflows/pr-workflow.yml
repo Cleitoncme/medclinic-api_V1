@@ -31,3 +31,5 @@ jobs:
         run: npm run format:check
       - name: Verificar imagem Docker
         run: docker build --tag medclinic-api-v1:pr .
+      - name: Validar contrato e atomicidade no PostgreSQL temporario
+        run: node scripts/smoke-docker.cjs medclinic-api-v1:pr

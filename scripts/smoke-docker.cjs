@@ -134,7 +134,7 @@ async function main() {
         '-tAc',
         'SELECT count(*) FROM migrations',
       ),
-      '3',
+      '4',
     );
     assert.equal(
       docker(
@@ -260,6 +260,127 @@ async function main() {
       'OK: pacientes CRUD, CPF com zeros, filtro literal sem injecao, paginacao, permissoes, soft delete e CPF concorrente 201/409.',
     );
 
+    async function doctorRequest(method, path = '', body, roles = ['admin'], server = 0) {
+      return fetch(urls[server] + '/api/v1/doctors' + path, {
+        method,
+        headers: {
+          'content-type': 'application/json',
+          ...(roles ? { authorization: 'Bearer ' + patientToken(roles) } : {}),
+        },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+    }
+    const doctorInput = {
+      name: ' Helena %_\\ ',
+      email: 'helena@smoke.test',
+      password: 'Doctor-test-123',
+      crm: 'CRM-SC-1',
+    };
+    assert.equal((await doctorRequest('POST', '', doctorInput, null)).status, 401);
+    for (const roles of [['secretary'], ['doctor']])
+      assert.equal((await doctorRequest('POST', '', doctorInput, roles)).status, 403);
+    const doctorResponse = await doctorRequest('POST', '', doctorInput);
+    assert.equal(doctorResponse.status, 201);
+    const doctor = await doctorResponse.json();
+    assert.deepEqual(doctor.user.roles, ['doctor']);
+    assert.equal(doctor.user.passwordHash, undefined);
+    assert.equal(doctor.user.password, undefined);
+    const doctorLogin = await fetch(urls[0] + '/api/v1/auth/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: doctorInput.email, password: doctorInput.password }),
+    });
+    assert.equal(doctorLogin.status, 200);
+    const doctorToken = (await doctorLogin.json()).accessToken;
+    const doctorMe = await fetch(urls[0] + '/api/v1/users/me', {
+      headers: { authorization: 'Bearer ' + doctorToken },
+    });
+    assert.deepEqual((await doctorMe.json()).roles, ['doctor']);
+    const duplicate = await doctorRequest('POST', '', {
+      ...doctorInput,
+      email: 'rollback@smoke.test',
+    });
+    assert.equal(duplicate.status, 409);
+    assert.equal((await duplicate.json()).error, 'CRM_JA_CADASTRADO');
+    const rollbackLogin = await fetch(urls[1] + '/api/v1/auth/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'rollback@smoke.test', password: doctorInput.password }),
+    });
+    assert.equal(rollbackLogin.status, 401);
+    const duplicateEmail = await doctorRequest('POST', '', { ...doctorInput, crm: 'CRM-SC-2' });
+    assert.equal(duplicateEmail.status, 409);
+    assert.equal((await duplicateEmail.json()).error, 'EMAIL_JA_CADASTRADO');
+    for (const roles of [['admin'], ['secretary'], ['doctor']]) {
+      const found = await doctorRequest('GET', '/' + doctor.id, undefined, roles, 1);
+      assert.equal(found.status, 200);
+      assert.deepEqual(await found.json(), doctor);
+    }
+    assert.equal((await doctorRequest('GET', '/2147483647')).status, 404);
+    assert.equal((await doctorRequest('GET', '/0')).status, 400);
+    assert.equal((await doctorRequest('GET', '', undefined, null)).status, 401);
+    const filtered = await doctorRequest('GET', '?name=' + encodeURIComponent('%_\\'));
+    assert.equal((await filtered.json()).meta.total, 1);
+    assert.equal((await (await doctorRequest('GET', '?name=HELENA')).json()).meta.total, 1);
+    const race = await Promise.all(
+      [0, 1].map((server) =>
+        doctorRequest(
+          'POST',
+          '',
+          { ...doctorInput, email: 'race' + server + '@smoke.test', crm: 'CRM-RACE' },
+          ['admin'],
+          server,
+        ),
+      ),
+    );
+    assert.deepEqual(race.map((r) => r.status).sort(), [201, 409]);
+    const raceEmail = await Promise.all(
+      [0, 1].map((server) =>
+        doctorRequest(
+          'POST',
+          '',
+          { ...doctorInput, email: 'same@smoke.test', crm: 'CRM-EMAIL-' + server },
+          ['admin'],
+          server,
+        ),
+      ),
+    );
+    assert.deepEqual(raceEmail.map((r) => r.status).sort(), [201, 409]);
+    const page = await doctorRequest('GET', '?page=2&pageSize=1');
+    const pageBody = await page.json();
+    assert.equal(pageBody.meta.total, 3);
+    assert.equal(pageBody.data.length, 1);
+    assert.equal(
+      docker(
+        'exec',
+        database,
+        'psql',
+        '-U',
+        'postgres',
+        '-d',
+        'medclinic',
+        '-tAc',
+        "SELECT count(*) FROM users WHERE email = 'rollback@smoke.test'",
+      ),
+      '0',
+    );
+    assert.equal(
+      docker(
+        'exec',
+        database,
+        'psql',
+        '-U',
+        'postgres',
+        '-d',
+        'medclinic',
+        '-tAc',
+        'SELECT count(*) FROM doctors',
+      ),
+      '3',
+    );
+    console.log(
+      'OK: medicos, login real, permissoes, filtros, paginacao, rollback de usuario e concorrencia de CRM/email.',
+    );
     docker('restart', apps[0]);
     await waitFor(
       async () => (await login(`http://${docker('port', apps[0], '8080/tcp')}`)).ok,
@@ -277,7 +398,7 @@ async function main() {
         '-tAc',
         'SELECT count(*) FROM users',
       ),
-      '1',
+      '4',
     );
     console.log(
       'OK: duas réplicas, migrations únicas, seed idempotente, PORT=8080, health/login/me e reinício.',
