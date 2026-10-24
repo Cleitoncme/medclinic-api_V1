@@ -133,3 +133,13 @@ rede ou ambiente. A regressão HTTP cobre permissões, status e envelopes. O
 script opcional scripts/smoke-docker.cjs valida em PostgreSQL temporário o CRUD,
 filtros, paginação, remoção lógica e CPF simultâneo em duas réplicas (201/409).
 A publicação na nuvem continua acompanhada pelo card #5, independentemente deste módulo.
+
+## Medicos
+
+POST /api/v1/doctors (admin) recebe name, email, password e crm. A criacao do usuario com perfil doctor e do registro profissional ocorre na mesma transacao PostgreSQL: CRM ou email duplicado retorna 409 (CRM_JA_CADASTRADO / EMAIL_JA_CADASTRADO), sem usuario orfao. A senha e armazenada apenas como hash e nunca aparece na resposta. O medico pode autenticar pelo login existente.
+
+GET /api/v1/doctors e GET /api/v1/doctors/:id aceitam qualquer usuario autenticado. Listagem usa data/meta, page (padrao 1), pageSize (padrao 20, maximo 100), filtro parcial name sem diferenciar maiusculas e ordem por ID. Caracteres de LIKE no filtro sao literais. ID profissional e numerico; user.id preserva o UUID da autenticacao existente. Nao ha PATCH/DELETE de medicos no contrato desta etapa.
+
+Nome tem limite de 120 caracteres, email de 160, senha minimo de 8 e CRM de 50; nome e CRM sao aparados, email e normalizado para minusculas. CRM e unico globalmente e comparado exatamente apos trim, sem impor formato estadual ausente no contrato. Campos roles enviados no cadastro nao concedem privilegios: o perfil sempre sera doctor.
+
+A migration create-doctors-table.ts cria o relacionamento unico com users. Execute npm run migration:run antes da execucao fora do Docker; no container o entrypoint aplica migrations. O teste node scripts/smoke-docker.cjs usa PostgreSQL descartavel e duas replicas para validar rollback, login, permissoes e concorrencia de CRM/email, preservando o banco local.
