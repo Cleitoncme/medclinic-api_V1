@@ -5,6 +5,7 @@ export type ErrorCode =
   | 'ACESSO_NEGADO'
   | 'RECURSO_NAO_ENCONTRADO'
   | 'EMAIL_JA_CADASTRADO'
+  | 'CRM_JA_CADASTRADO'
   | 'CPF_JA_CADASTRADO';
 export class DomainError extends Error {
   constructor(

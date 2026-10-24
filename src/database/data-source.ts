@@ -1,3 +1,5 @@
+import { DoctorEntity } from '../entities/doctor.entity';
+import { CreateDoctorsTable1792872000000 } from './migrations/create-doctors-table';
 import 'reflect-metadata';
 
 import { DataSource } from 'typeorm';
@@ -20,10 +22,11 @@ export const appDataSource = new DataSource({
   database: env.database.name,
   synchronize: false,
   logging: false,
-  entities: [User, PatientEntity],
+  entities: [User, PatientEntity, DoctorEntity],
   migrations: [
     CreateUsersTable1726000000000,
     MigrateUserRoles1792670400000,
     CreatePatientsTable1792785600000,
+    CreateDoctorsTable1792872000000,
   ],
 });
