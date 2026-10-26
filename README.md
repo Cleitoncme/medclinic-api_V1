@@ -89,8 +89,7 @@ Os helpers parsePagination/paginated preparam o contrato de listagem dos próxim
 
 Consulte [PUBLICACAO_CLOUD_RUN.md](PUBLICACAO_CLOUD_RUN.md) para build, teste local,
 SSL, migrations/seed na inicialização, configuração do GitHub e infraestrutura pendente.
-O workflow publica apenas por push em main. A nuvem ainda não foi provisionada: o
-usuário definiu orçamento zero e a configuração externa precisa respeitar esse limite.
+O workflow publica apenas por push em main. Banco, registro e identidades foram preparados; serviço, segredos de execução e primeira publicação continuam pendentes. Não foi realizado upgrade da conta.
 
 ## Pacientes
 
