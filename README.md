@@ -89,8 +89,7 @@ Os helpers parsePagination/paginated preparam o contrato de listagem dos próxim
 
 Consulte [PUBLICACAO_CLOUD_RUN.md](PUBLICACAO_CLOUD_RUN.md) para build, teste local,
 SSL, migrations/seed na inicialização, configuração do GitHub e infraestrutura pendente.
-O workflow publica apenas por push em main. A nuvem ainda não foi provisionada: o
-usuário definiu orçamento zero e a configuração externa precisa respeitar esse limite.
+O workflow publica apenas por push em main. Banco, registro e identidades foram preparados; serviço, segredos de execução e primeira publicação continuam pendentes. Não foi realizado upgrade da conta.
 
 ## Pacientes
 
@@ -143,3 +142,13 @@ GET /api/v1/doctors e GET /api/v1/doctors/:id aceitam qualquer usuario autentica
 Nome tem limite de 120 caracteres, email de 160, senha minimo de 8 e CRM de 50; nome e CRM sao aparados, email e normalizado para minusculas. CRM e unico globalmente e comparado exatamente apos trim, sem impor formato estadual ausente no contrato. Campos roles enviados no cadastro nao concedem privilegios: o perfil sempre sera doctor.
 
 A migration create-doctors-table.ts cria o relacionamento unico com users. Execute npm run migration:run antes da execucao fora do Docker; no container o entrypoint aplica migrations. O teste node scripts/smoke-docker.cjs usa PostgreSQL descartavel e duas replicas para validar rollback, login, permissoes e concorrencia de CRM/email, preservando o banco local.
+
+## Autenticacao de publicacao sem chave JSON
+
+A politica da organizacao bloqueia a criacao de chaves permanentes. Com a substituicao aceita pelo professor, o deploy usa Workload Identity Federation (OIDC) e a identidade medclinic-deploy@medclinic-api-v1.iam.gserviceaccount.com. O segredo GCP_CREDENTIALS nao e utilizado. A identidade medclinic-run e a conta de execucao da API, separada da conta de publicacao.
+
+Configure as variaveis de Actions GCP_WORKLOAD_IDENTITY_PROVIDER e GCP_DEPLOY_SERVICE_ACCOUNT, alem das quatro variaveis de projeto/regiao/registro/servico. O job de publicacao recebe id-token: write para solicitar um token OIDC temporario; o build da imagem ocorre antes da autenticacao para nao incluir credenciais no contexto Docker. Arquivos gha-creds-*.json permanecem ignorados no Git e no Docker.
+
+O provedor aceita somente repositorio de ID 1427700678, proprietario de ID 81780978, evento push, ref refs/heads/main e workflow Cleitoncme/medclinic-api_V1/.github/workflows/deploy.yml@refs/heads/main. O vinculo de IAM usa o subject exato repo:Cleitoncme/medclinic-api_V1:ref:refs/heads/main. PRs, forks e a develop nao recebem acesso de publicacao. A politica de bloqueio de chaves permanece ativa.
+
+Permissoes: Cloud Run Developer no projeto; Artifact Registry Writer somente no repositorio medclinic; Service Account User somente na conta medclinic-run; Workload Identity User na conta medclinic-deploy somente para o subject autorizado. A autenticacao ainda precisa ser comprovada em uma execucao de push na main; configurar OIDC nao significa que a API ja esteja publicada.
