@@ -1,3 +1,4 @@
+import { AddDoctorWorkSchedule1793102400000 } from './migrations/add-doctor-work-schedule';
 import { DoctorEntity } from '../entities/doctor.entity';
 import { CreateDoctorsTable1792872000000 } from './migrations/create-doctors-table';
 import 'reflect-metadata';
@@ -28,5 +29,6 @@ export const appDataSource = new DataSource({
     MigrateUserRoles1792670400000,
     CreatePatientsTable1792785600000,
     CreateDoctorsTable1792872000000,
+    AddDoctorWorkSchedule1793102400000,
   ],
 });

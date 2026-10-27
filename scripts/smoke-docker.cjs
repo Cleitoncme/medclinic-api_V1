@@ -134,7 +134,7 @@ async function main() {
         '-tAc',
         'SELECT count(*) FROM migrations',
       ),
-      '4',
+      '5',
     );
     assert.equal(
       docker(
@@ -380,6 +380,63 @@ async function main() {
     );
     console.log(
       'OK: medicos, login real, permissoes, filtros, paginacao, rollback de usuario e concorrencia de CRM/email.',
+    );
+    const schedulePath = '/' + doctor.id + '/work-schedule';
+    const shifts = [
+      { weekDay: 2, startTime: '08:00', endTime: '12:00', slotDurationMinutes: 30 },
+      { weekDay: 2, startTime: '12:00', endTime: '18:00', slotDurationMinutes: 20 },
+    ];
+    assert.deepEqual(await (await doctorRequest('GET', schedulePath)).json(), { shifts: [] });
+    for (const method of ['GET', 'PUT'])
+      assert.equal(
+        (await doctorRequest(method, schedulePath, method === 'PUT' ? { shifts } : undefined, null))
+          .status,
+        401,
+      );
+    for (const roles of [['doctor'], ['secretary']]) {
+      assert.equal((await doctorRequest('PUT', schedulePath, { shifts }, roles)).status, 403);
+      assert.equal((await doctorRequest('GET', schedulePath, undefined, roles)).status, 200);
+    }
+    const savedSchedule = await doctorRequest('PUT', schedulePath, { shifts });
+    assert.equal(savedSchedule.status, 200);
+    assert.deepEqual(await savedSchedule.json(), { shifts });
+    assert.deepEqual(
+      await (await doctorRequest('GET', schedulePath, undefined, ['doctor'], 1)).json(),
+      { shifts },
+    );
+    const invalidSchedule = await doctorRequest('PUT', schedulePath, {
+      shifts: [shifts[0], shifts[0]],
+    });
+    assert.equal(invalidSchedule.status, 400);
+    assert.equal((await invalidSchedule.json()).error, 'DADOS_INVALIDOS');
+    assert.deepEqual(await (await doctorRequest('GET', schedulePath)).json(), { shifts });
+    for (const method of ['GET', 'PUT'])
+      assert.equal(
+        (
+          await doctorRequest(
+            method,
+            '/2147483647/work-schedule',
+            method === 'PUT' ? { shifts } : undefined,
+          )
+        ).status,
+        404,
+      );
+    const alternatives = [{ shifts: [shifts[0]] }, { shifts: [shifts[1]] }];
+    const concurrent = await Promise.all(
+      alternatives.map((body, index) => doctorRequest('PUT', schedulePath, body, ['admin'], index)),
+    );
+    assert.deepEqual(
+      concurrent.map((r) => r.status),
+      [200, 200],
+    );
+    const finalSchedule = await (await doctorRequest('GET', schedulePath)).json();
+    assert.ok(
+      alternatives.some((body) => require('node:util').isDeepStrictEqual(body, finalSchedule)),
+    );
+    assert.equal((await doctorRequest('PUT', schedulePath, { shifts: [] })).status, 200);
+    assert.deepEqual(await (await doctorRequest('GET', schedulePath)).json(), { shifts: [] });
+    console.log(
+      'OK: escalas, RBAC, formato, sobreposicao, preservacao apos erro e substituicao concorrente atomica.',
     );
     docker('restart', apps[0]);
     await waitFor(
