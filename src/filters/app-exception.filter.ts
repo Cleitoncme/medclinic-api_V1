@@ -9,6 +9,9 @@ import type { Response } from 'express';
 import { QueryFailedError } from 'typeorm';
 import { DomainError, type ErrorCode } from '../domain/domain-error';
 const statuses: Record<ErrorCode, number> = {
+  HORARIO_FORA_DA_ESCALA: 422,
+  HORARIO_INDISPONIVEL: 409,
+  PACIENTE_INDISPONIVEL: 409,
   DADOS_INVALIDOS: 400,
   NAO_AUTENTICADO: 401,
   CREDENCIAIS_INVALIDAS: 401,

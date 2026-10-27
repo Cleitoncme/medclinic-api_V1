@@ -163,3 +163,15 @@ Permissoes: Cloud Run Developer no projeto; Artifact Registry Writer somente no 
 - Sobreposicoes no mesmo dia retornam 400 DADOS_INVALIDOS; turnos encostados sao aceitos. Medico inexistente retorna 404 RECURSO_NAO_ENCONTRADO.
 - Persistencia jsonb na linha do medico, com migration e substituicao em transacao usando bloqueio pessimista nessa linha. A criacao futura de agendamentos deve adquirir o mesmo bloqueio antes de ler os turnos. Escalas nao recalculam consultas previamente marcadas.
 - Testes unitarios usam dubles da porta; o smoke Docker verifica permissao, leitura entre replicas, preservacao da escala invalida, remocao e concorrencia com PostgreSQL real.
+
+## Criacao de agendamentos
+
+POST /api/v1/appointments permite admin e secretary. Recebe doctorId, patientId (inteiros) e startsAt ISO 8601 com fuso explicito; calcula endsAt pelo turno e fixa status scheduled. Responde 201 com instantes UTC. Horarios locais sao interpretados em America/Sao_Paulo.
+
+Validacao: existencia de medico/paciente (404), turno/grade/encaixe (422 HORARIO_FORA_DA_ESCALA), conflito do medico (409 HORARIO_INDISPONIVEL), conflito do paciente (409 PACIENTE_INDISPONIVEL). Entrada malformada retorna 400. Apenas cancelled deixa de ocupar horario; intervalos encostados sao aceitos.
+
+A porta transacional permite testes unitarios sem banco. O adapter usa READ COMMITTED, bloqueia medico e depois paciente e executa todas as leituras/gravações pelo mesmo EntityManager. O bloqueio do medico coordena com a substituicao da escala; o do paciente protege consultas com medicos diferentes. Inicios/fins sao armazenados em timestamptz e nao recalculados quando a escala muda. Indices parciais auxiliam a busca de conflitos; a garantia concorrente depende do protocolo de bloqueio em todos os futuros caminhos de escrita.
+
+Referencia conceitual consultada: [exemplo de aula do professor](https://github.com/marcomoura-senai/nestjs-clinica), main 7fa5d59 (27/10/2026), transacao e pessimistic_write no medico. Implementacao propria adaptada ao contrato, com bloqueio adicional do paciente e regras isoladas nos services. Nas proximas etapas, consultar novamente essa referencia antes de implementar.
+
+Listagem, agenda e transicoes de status serao implementadas na etapa seguinte. O teste Docker utiliza apenas banco descartavel para simular cancelled e comprovar liberacao do horario.

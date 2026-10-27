@@ -134,7 +134,7 @@ async function main() {
         '-tAc',
         'SELECT count(*) FROM migrations',
       ),
-      '5',
+      '6',
     );
     assert.equal(
       docker(
@@ -437,6 +437,139 @@ async function main() {
     assert.deepEqual(await (await doctorRequest('GET', schedulePath)).json(), { shifts: [] });
     console.log(
       'OK: escalas, RBAC, formato, sobreposicao, preservacao apos erro e substituicao concorrente atomica.',
+    );
+    async function appointmentRequest(body, roles = ['admin'], server = 0) {
+      return fetch(urls[server] + '/api/v1/appointments', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          ...(roles ? { authorization: 'Bearer ' + patientToken(roles) } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+    }
+    const patients = [];
+    for (let i = 0; i < 4; i++) {
+      const response = await patientRequest('POST', '', {
+        name: 'Agenda ' + i,
+        cpf: '5555555555' + i,
+      });
+      assert.equal(response.status, 201);
+      patients.push(await response.json());
+    }
+    const doctors = await (await doctorRequest('GET', '?pageSize=100')).json();
+    const secondDoctor = doctors.data.find((d) => d.id !== doctor.id);
+    const agenda = {
+      shifts: [{ weekDay: 2, startTime: '08:00', endTime: '12:00', slotDurationMinutes: 30 }],
+    };
+    for (const id of [doctor.id, secondDoctor.id])
+      assert.equal((await doctorRequest('PUT', '/' + id + '/work-schedule', agenda)).status, 200);
+    const appointmentInput = {
+      doctorId: doctor.id,
+      patientId: patients[0].id,
+      startsAt: '2026-10-13T08:00:00-03:00',
+    };
+    assert.equal((await appointmentRequest(appointmentInput, null)).status, 401);
+    assert.equal((await appointmentRequest(appointmentInput, ['doctor'])).status, 403);
+    const first = await appointmentRequest(
+      { ...appointmentInput, endsAt: '2030-01-01', status: 'done' },
+      ['secretary'],
+    );
+    assert.equal(first.status, 201);
+    const appointment = await first.json();
+    assert.equal(appointment.startsAt, '2026-10-13T11:00:00.000Z');
+    assert.equal(appointment.endsAt, '2026-10-13T11:30:00.000Z');
+    assert.equal(appointment.status, 'scheduled');
+    async function appointmentError(body, status, code) {
+      const response = await appointmentRequest(body);
+      assert.equal(response.status, status);
+      assert.equal((await response.json()).error, code);
+    }
+    await appointmentError(
+      { ...appointmentInput, doctorId: 2147483647 },
+      404,
+      'RECURSO_NAO_ENCONTRADO',
+    );
+    await appointmentError(
+      { ...appointmentInput, patientId: created.id },
+      404,
+      'RECURSO_NAO_ENCONTRADO',
+    );
+    await appointmentError(
+      { ...appointmentInput, startsAt: '2026-10-13T08:00:00' },
+      400,
+      'DADOS_INVALIDOS',
+    );
+    await appointmentError(
+      { ...appointmentInput, startsAt: '2026-10-13T08:20:00-03:00' },
+      422,
+      'HORARIO_FORA_DA_ESCALA',
+    );
+    await appointmentError(appointmentInput, 409, 'HORARIO_INDISPONIVEL');
+    await appointmentError(
+      { ...appointmentInput, doctorId: secondDoctor.id },
+      409,
+      'PACIENTE_INDISPONIVEL',
+    );
+    assert.equal(
+      (await appointmentRequest({ ...appointmentInput, startsAt: '2026-10-13T08:30:00-03:00' }))
+        .status,
+      201,
+    );
+    const races = await Promise.all(
+      [0, 1].map((i) =>
+        appointmentRequest(
+          {
+            ...appointmentInput,
+            patientId: patients[i + 1].id,
+            startsAt: '2026-10-13T09:00:00-03:00',
+          },
+          ['secretary'],
+          i,
+        ),
+      ),
+    );
+    assert.deepEqual(races.map((r) => r.status).sort(), [201, 409]);
+    assert.equal((await races.find((r) => r.status === 409).json()).error, 'HORARIO_INDISPONIVEL');
+    const patientRace = await Promise.all(
+      [doctor.id, secondDoctor.id].map((doctorId, i) =>
+        appointmentRequest(
+          {
+            ...appointmentInput,
+            doctorId,
+            patientId: patients[3].id,
+            startsAt: '2026-10-13T10:00:00-03:00',
+          },
+          ['admin'],
+          i,
+        ),
+      ),
+    );
+    assert.deepEqual(patientRace.map((r) => r.status).sort(), [201, 409]);
+    assert.equal(
+      (await patientRace.find((r) => r.status === 409).json()).error,
+      'PACIENTE_INDISPONIVEL',
+    );
+    const query = (sql) =>
+      docker('exec', database, 'psql', '-U', 'postgres', '-d', 'medclinic', '-tAc', sql);
+    const beforeSchedule = query(
+      'SELECT starts_at,ends_at FROM appointments WHERE id=' + appointment.id,
+    );
+    const shorter = { shifts: [{ ...agenda.shifts[0], slotDurationMinutes: 20 }] };
+    assert.equal((await doctorRequest('PUT', schedulePath, shorter)).status, 200);
+    await appointmentError(
+      { ...appointmentInput, patientId: patients[2].id, startsAt: '2026-10-13T08:20:00-03:00' },
+      409,
+      'HORARIO_INDISPONIVEL',
+    );
+    assert.equal(
+      query('SELECT starts_at,ends_at FROM appointments WHERE id=' + appointment.id),
+      beforeSchedule,
+    );
+    query("UPDATE appointments SET status='cancelled' WHERE id=" + appointment.id);
+    assert.equal((await appointmentRequest(appointmentInput)).status, 201);
+    console.log(
+      'OK: agendamentos, fuso, grade, RBAC, conflitos de intervalos, cancelamento e escala sem alterar consulta; corridas medico/paciente 201/409 em duas replicas.',
     );
     docker('restart', apps[0]);
     await waitFor(
