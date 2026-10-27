@@ -152,3 +152,14 @@ Configure as variaveis de Actions GCP_WORKLOAD_IDENTITY_PROVIDER e GCP_DEPLOY_SE
 O provedor aceita somente repositorio de ID 1427700678, proprietario de ID 81780978, evento push, ref refs/heads/main e workflow Cleitoncme/medclinic-api_V1/.github/workflows/deploy.yml@refs/heads/main. O vinculo de IAM usa o subject exato repo:Cleitoncme/medclinic-api_V1:ref:refs/heads/main. PRs, forks e a develop nao recebem acesso de publicacao. A politica de bloqueio de chaves permanece ativa.
 
 Permissoes: Cloud Run Developer no projeto; Artifact Registry Writer somente no repositorio medclinic; Service Account User somente na conta medclinic-run; Workload Identity User na conta medclinic-deploy somente para o subject autorizado. A autenticacao ainda precisa ser comprovada em uma execucao de push na main; configurar OIDC nao significa que a API ja esteja publicada.
+
+## Escalas de trabalho
+
+- GET /api/v1/doctors/:doctorId/work-schedule: qualquer usuario autenticado.
+- PUT /api/v1/doctors/:doctorId/work-schedule: somente admin; substitui toda a escala.
+- Corpo e resposta: {"shifts":[{"weekDay":2,"startTime":"08:00","endTime":"12:00","slotDurationMinutes":30}]}.
+- Lista vazia remove os turnos. Medico existente sem escala retorna {"shifts":[]}.
+- Horarios HH:MM sao locais da clinica (America/Sao_Paulo), sem conversao UTC. Dias inteiros 0–6; duracao numerica finita e positiva. Nao se exige divisibilidade do turno pela duracao.
+- Sobreposicoes no mesmo dia retornam 400 DADOS_INVALIDOS; turnos encostados sao aceitos. Medico inexistente retorna 404 RECURSO_NAO_ENCONTRADO.
+- Persistencia jsonb na linha do medico, com migration e substituicao em transacao usando bloqueio pessimista nessa linha. A criacao futura de agendamentos deve adquirir o mesmo bloqueio antes de ler os turnos. Escalas nao recalculam consultas previamente marcadas.
+- Testes unitarios usam dubles da porta; o smoke Docker verifica permissao, leitura entre replicas, preservacao da escala invalida, remocao e concorrencia com PostgreSQL real.

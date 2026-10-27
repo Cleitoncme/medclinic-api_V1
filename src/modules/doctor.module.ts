@@ -1,3 +1,10 @@
+import { WorkScheduleController } from '../controllers/work-schedule.controller';
+import { WorkScheduleService } from '../services/work-schedule.service';
+import { WorkScheduleRepository } from '../repositories/work-schedule.repository';
+import {
+  WORK_SCHEDULE_REPOSITORY,
+  type WorkScheduleRepositoryPort,
+} from '../ports/work-schedule-repository.port';
 import { Module } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { DatabaseModule } from '../database/database.module';
@@ -11,8 +18,18 @@ import { AuthenticationGuard } from '../guards/authentication.guard';
 import { RolesGuard } from '../guards/roles.guard';
 @Module({
   imports: [DatabaseModule, SecurityModule],
-  controllers: [DoctorController],
+  controllers: [DoctorController, WorkScheduleController],
   providers: [
+    {
+      provide: WORK_SCHEDULE_REPOSITORY,
+      useFactory: (source: DataSource) => new WorkScheduleRepository(source),
+      inject: [DataSource],
+    },
+    {
+      provide: WorkScheduleService,
+      useFactory: (repository: WorkScheduleRepositoryPort) => new WorkScheduleService(repository),
+      inject: [WORK_SCHEDULE_REPOSITORY],
+    },
     AuthenticationGuard,
     RolesGuard,
     {
