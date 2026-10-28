@@ -1,196 +1,92 @@
-# medclinic-api_V1
+# MedClinic API
 
-Base de autenticaÃ§Ã£o migrada para NestJS e TypeScript. Consulte [MIGRACAO_NESTJS.md](MIGRACAO_NESTJS.md) para arquitetura, comandos e limites desta etapa.
+API de clínica médica em NestJS e TypeScript, com autenticação, pacientes, médicos, escalas, agendamentos e prontuários. O projeto é uma implementação própria baseada no documento de requisitos e usa o [repositório do professor](https://github.com/marcomoura-senai/nestjs-clinica) como referência de estudo.
 
-## Fluxo de desenvolvimento
+- [Board do projeto](https://github.com/users/Cleitoncme/projects/2)
+- [API no Cloud Run](https://medclinic-api-v1-977210567831.southamerica-east1.run.app/api/v1/health): serviço inicial publicado; a versão completa em `develop` depende do merge final e da validação do deploy automático.
+- [Publicação e infraestrutura](PUBLICACAO_CLOUD_RUN.md) · [Arquitetura testável](ARQUITETURA_TESTAVEL.md) · [Migração para NestJS](MIGRACAO_NESTJS.md)
 
-A branch `develop` nasce da `main`. As branches de funcionalidade nascem da
-`develop` atualizada e seus pull requests tÃªm `develop` como destino. Na entrega,
-um PR de `develop` para `main` reÃºne o trabalho revisado e dispara a publicaÃ§Ã£o
-quando o workflow de deploy estiver configurado. A branch padrÃ£o continua `main`.
+## Tecnologias e arquitetura
 
-No board, **Done** significa funcionalidade revisada, testada e integrada Ã 
-`develop`; o card final acompanha a publicaÃ§Ã£o em produÃ§Ã£o. PRs para `develop`
-referenciam a issue explicitamente, pois `Closes #N` sÃ³ encerra automaticamente
-issues em PRs destinados Ã  branch padrÃ£o. Vincular o PR e mover o card apÃ³s merge.
+Node.js 22.12+ da série 22, NestJS, TypeScript, PostgreSQL, TypeORM, JWT, bcrypt, Vitest, Docker e GitHub Actions. Controllers recebem HTTP; services e arquivos de regras concentram validações e regras de negócio; portas descrevem dependências; repositories implementam persistência com TypeORM. O filtro central traduz erros ao envelope HTTP. A aplicação usa migrations, sem `synchronize`.
 
-O workflow de PR valida `develop` e `main` com o check estÃ¡vel `validacao`, Node 22,
-instalaÃ§Ã£o pelo lockfile, compilaÃ§Ã£o, testes de regressÃ£o, lint e formataÃ§Ã£o.
-O check inclui os testes unitários e exige 80% nas quatro métricas da camada de negócio.
+O modelo contém usuários com UUID e perfis, pacientes com CPF único e exclusão lógica, médicos vinculados a usuários e escalas em JSONB, agendamentos com início/fim em `timestamptz` e registros de prontuário associados a paciente e médico autor. E-mail, CPF e CRM têm unicidade no banco. O cadastro do médico e seu usuário é transacional. A criação de agendamentos bloqueia médico e paciente para impedir conflitos sob concorrência; consultas canceladas liberam o horário.
 
-Board pÃºblico: https://github.com/users/Cleitoncme/projects/2.
+## Execução local
 
-## Arquitetura para testes
+1. Instale Node.js compatível e Docker Desktop. Copie `.env.example` para `.env` e preencha as variáveis, incluindo um `JWT_SECRET` próprio e os dados do administrador. Não versione o `.env`.
+2. Inicie o PostgreSQL: `docker compose up -d postgres`. O arquivo Compose inicia apenas o banco, não a API. Com `DATABASE_PORT=5434` no `.env`, acesse o banco local nessa porta. Ajuste se ela já estiver ocupada.
+3. Na raiz do projeto, execute:
 
-Consulte [ARQUITETURA_TESTAVEL.md](ARQUITETURA_TESTAVEL.md) para interfaces, adapters e isolamento.
+```sh
+npm ci
+npm run migration:run
+npm run seed:admin
+npm run start:dev
+```
 
-## Testes unitários e cobertura
+O seed usa `ADMIN_NAME`, `ADMIN_EMAIL` e `ADMIN_PASSWORD`; é idempotente e não troca uma senha já existente nem promove usuário sem perfil admin. A API local usa `PORT` (padrão 3000) e responde em `/api/v1/health`. Para compilar e executar sem modo watch: `npm run build` e `npm start`.
 
-Use Node.js 22.12 ou superior da série 22 (o CI usa Node 22), ou uma versão
-compatível declarada em engines. Instale as dependências com npm ci.
+### Variáveis
 
-- npm test: executa os unitários com Vitest.
-- npm run test:cov: executa os unitários e exige pelo menos 80% em lines,
-  branches, functions e statements. Qualquer métrica abaixo disso reprova o comando.
-- npm run test:typecheck: verifica a tipagem estrita dos testes e dublês.
-- npm run test:regression: compila e executa os testes legados HTTP e de isolamento.
+| Variável                                                                                | Uso                                                                                             |
+| --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `PORT`                                                                                  | Porta HTTP; o Cloud Run fornece seu valor.                                                      |
+| `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USER`, `DATABASE_PASSWORD` | Conexão PostgreSQL.                                                                             |
+| `DATABASE_SSL`, `DATABASE_SSL_CA`                                                       | TLS para TCP; CA opcional. No socket Unix do proxy Cloud SQL, seguir a configuração do serviço. |
+| `JWT_SECRET`, `JWT_EXPIRES_IN`                                                          | Assinatura e duração do token; duração padrão `1h`.                                             |
+| `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`                                           | Credenciais do seed administrativo.                                                             |
+| `SEED_ADMIN_ON_START`                                                                   | Se `true`, habilita seed no entrypoint do container; padrão `false`.                            |
 
-O recorte está em `vitest.config.mts`: `src/**/*.service.ts`,
-`src/**/*.usecase.ts` e `src/**/*.rules.ts`. Arquivos novos com esses sufixos entram
-na cobertura mesmo sem importação por um teste. Controllers, entidades, módulos,
-adapters, repositórios TypeORM e migrations ficam fora da métrica de negócio.
-Regras novas devem seguir esses sufixos; ao introduzir outro padrão, atualizar o recorte.
+Use `.env.example` como referência. Em produção, configure segredos no ambiente/Secret Manager; não os inclua no código ou na imagem.
 
-Os unitários ficam em tests/unit e usam dublês tipados sobre as portas de
-repositório, senha e token. Não iniciam HTTP, não usam rede ou banco e não precisam
-de variáveis de ambiente. A regressão HTTP é separada e não entra na cobertura.
+## Rotas
 
-Os relatórios locais ficam em coverage/index.html e coverage/coverage-summary.json.
-A suíte atual verifica os serviços de usuários e autenticação: cadastro, normalização,
-hash, duplicidade, entrada inválida, consulta e autenticação. Os casos mínimos de
-agendamentos, sobreposição, escalas, status e prontuário da seção 4.5 serão escritos
-junto dessas funcionalidades. A cobertura atual não comprova regras ainda não implementadas.
+Todas usam prefixo `/api/v1`; exceto health e login, exigem `Authorization: Bearer <accessToken>`.
 
-Em PRs para develop e main, o job validacao compila, roda a regressão, verifica os
-tipos, executa test:cov e confere lint e formatação. O nome do check permanece estável.
+| Método | Rota                                                  | Acesso                                                   |
+| ------ | ----------------------------------------------------- | -------------------------------------------------------- |
+| GET    | `/health`                                             | Público                                                  |
+| POST   | `/auth/login`                                         | Público; recebe email e password, retorna accessToken    |
+| GET    | `/users/me`                                           | Autenticado                                              |
+| POST   | `/users`                                              | admin                                                    |
+| POST   | `/patients`                                           | admin, secretary                                         |
+| GET    | `/patients`, `/patients/:id`                          | Autenticado                                              |
+| PATCH  | `/patients/:id`                                       | admin, secretary                                         |
+| DELETE | `/patients/:id`                                       | admin                                                    |
+| POST   | `/doctors`                                            | admin                                                    |
+| GET    | `/doctors`, `/doctors/:id`                            | Autenticado                                              |
+| GET    | `/doctors/:id/work-schedule`                          | Autenticado                                              |
+| PUT    | `/doctors/:id/work-schedule`                          | admin                                                    |
+| GET    | `/doctors/:id/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD` | Autenticado                                              |
+| POST   | `/appointments`                                       | admin, secretary                                         |
+| GET    | `/appointments`, `/appointments/:id`                  | Autenticado; doctor sem admin acessa somente os próprios |
+| PATCH  | `/appointments/:id/status`                            | Conforme transição e perfil                              |
+| POST   | `/patients/:id/medical-records`                       | doctor com vínculo                                       |
+| GET    | `/patients/:id/medical-records`                       | admin ou doctor com vínculo                              |
 
-## Autenticação no contrato final
+Listagens usam `data` e `meta`, com `page` padrão 1 e `pageSize` padrão 20 (máximo 100). Pacientes e médicos aceitam filtro parcial `name`; consultas aceitam `doctorId`, `patientId`, `status`, `from` e `to`. Instantes são devolvidos em UTC; datas de filtro consideram dias locais em `America/Sao_Paulo`. A agenda aceita até 31 dias inclusive e não retorna consultas canceladas nem gera slots.
 
-GET `/api/v1/health` é público. POST `/api/v1/auth/login` recebe email/password
-e devolve `{ accessToken }`. GET `/api/v1/users/me` devolve id/name/email/roles
-diretamente. POST `/api/v1/users` exige Bearer de admin e recebe name/email/password/roles.
-Perfis válidos: admin, secretary, doctor, em array não vazio; múltiplos perfis são
-aceitos. O cadastro público foi removido. Nunca são devolvidos senha ou hash.
+Consulta: `scheduled → in_progress → done`, ou cancelamento permitido conforme o perfil. Para prontuário, vínculo exige consulta `in_progress` ou `done`; a autoria vem do token. Usuário com doctor e admin escreve somente se for médico vinculado; admin pode ler para auditoria.
 
-Execute `npm run migration:run` antes de iniciar a API e depois `npm run seed:admin`,
-com ADMIN_NAME, ADMIN_EMAIL e ADMIN_PASSWORD no ambiente. O seed é idempotente
-para admin existente e falha para e-mail de não administrador, sem elevar privilégios.
-A senha existente não é substituída. Use senha com pelo menos oito caracteres.
+Erros seguem `{ statusCode, error, message }`. Exemplos: `DADOS_INVALIDOS` (400), `NAO_AUTENTICADO` (401), `ACESSO_NEGADO` (403), conflitos (409) e `TRANSICAO_INVALIDA` (422). Para falhas inesperadas usa-se provisoriamente `ERRO_INTERNO` (500), pois o documento exige envelope de erro 500 mas não especifica um código para ele.
 
-A migration incremental converte ADMIN para admin e ATTENDANT para secretary,
-preserva UUIDs e credenciais e troca role por roles (enum array PostgreSQL).
-UUIDs existentes foram mantidos: o documento mostra IDs numéricos nos exemplos,
-mas não impõe conversão. Tokens antigos devem ser descartados após a atualização.
-O rollback recusa dados com doctor ou múltiplos perfis para evitar perda silenciosa.
-Arquivos de migration têm nomes descritivos, mantendo timestamp no identificador interno.
+## Testes e qualidade
 
-O envelope de erro é `{ statusCode, error, message }`, com mensagem em português.
-DomainError não contém status HTTP; o filtro central faz a tradução, inclusive
-violação concorrente da constraint UQ_users_email para EMAIL_JA_CADASTRADO.
-Decisão provisória: falhas inesperadas usam 500/ERRO_INTERNO, pois o documento
-exige envelope 500 e não lista código correspondente. Detalhes internos não são expostos.
+```sh
+npm run test:cov
+npm run test:typecheck
+npm run test:regression
+npm run lint
+npm run format:check
+docker build -t medclinic-api-v1:pr .
+node scripts/smoke-docker.cjs medclinic-api-v1:pr
+```
 
-JWT_EXPIRES_IN aceita duração positiva com unidade s/m/h/d, padrão 1h.
-No Docker local criado para este projeto, o PostgreSQL usa localhost:5434;
-configure as demais variáveis conforme .env.example. Segredos reais não são versionados.
-Os helpers parsePagination/paginated preparam o contrato de listagem dos próximos módulos.
+Os unitários usam dublês, sem rede ou banco. O Vitest exige 80% em statements, branches, functions e lines nos services, use cases e arquivos de regras; o relatório HTML fica em `coverage/index.html`. Na verificação local de 28/10/2026, passaram 330 testes unitários e 17 de regressão; a cobertura foi 99,36% de instruções, 99,39% de ramificações e 100% de funções e linhas. O smoke cria PostgreSQL descartável e duas réplicas, testa migrations, permissões e concorrência e remove apenas seus próprios recursos.
 
-## Docker e publicação no Cloud Run
+## Fluxo e publicação
 
-Consulte [PUBLICACAO_CLOUD_RUN.md](PUBLICACAO_CLOUD_RUN.md) para build, teste local,
-SSL, migrations/seed na inicialização, configuração do GitHub e infraestrutura pendente.
-O workflow publica apenas por push em main. Banco, registro e identidades foram preparados; serviço, segredos de execução e primeira publicação continuam pendentes. Não foi realizado upgrade da conta.
+Branches de trabalho partem de `develop`; PRs são validados para `develop` e `main`. Depois da revisão final, um PR de `develop` para `main` dispara o workflow de publicação em push. O deploy usa Workload Identity Federation/OIDC, sem chave JSON permanente; a execução automática na `main` e a API completa publicada ainda precisam ser verificadas. O ambiente Cloud SQL de teste tem prazo limitado; confira sua disponibilidade antes da avaliação. O projeto não pressupõe contratação de recursos pagos.
 
-## Pacientes
-
-Rotas sob /api/v1, todas com Authorization Bearer:
-
-| Método | Rota          | Perfis               | Resultado                   |
-| ------ | ------------- | -------------------- | --------------------------- |
-| POST   | /patients     | admin, secretary     | 201 com paciente            |
-| GET    | /patients     | qualquer autenticado | 200 com data/meta           |
-| GET    | /patients/:id | qualquer autenticado | 200 com paciente            |
-| PATCH  | /patients/:id | admin, secretary     | 200 com paciente atualizado |
-| DELETE | /patients/:id | admin                | 204 sem corpo               |
-
-O cadastro recebe name e cpf. CPF é string de exatamente 11 dígitos, sem
-pontuação; zeros iniciais são preservados. Não se exige cálculo de dígito
-verificador. Nome é obrigatório, aparado nas extremidades e limitado a 120
-caracteres. As respostas contêm id numérico positivo, name, cpf e createdAt UTC.
-O PATCH aceita somente name; tentativa de alterar CPF é recusada com 400.
-
-A listagem aceita page (padrão 1), pageSize (padrão 20, máximo 100) e name
-(substring sem diferenciar maiúsculas). A ordenação por id crescente é estável.
-Os caracteres %, _ e barra invertida no filtro são tratados literalmente;
-consulta parametrizada evita interpretar o nome como SQL. Entradas inválidas
-retornam 400 DADOS_INVALIDOS; inexistentes retornam 404 RECURSO_NAO_ENCONTRADO.
-
-A exclusão é lógica: deletedAt permanece no banco, sem aparecer nas respostas.
-Removidos não aparecem na listagem, consulta nem alteração; remover novamente
-retorna 404. O CPF continua reservado, inclusive após exclusão, para preservar
-a unicidade global de RN02 e o histórico usado pelos módulos clínicos futuros.
-UQ_patients_cpf impede duplicação inclusive em requisições concorrentes; o
-filtro central traduz a violação em 409 CPF_JA_CADASTRADO.
-
-Execute npm run migration:run antes de iniciar a API fora do container.
-No Docker, o entrypoint aplica a migration incremental create-patients-table
-automaticamente. Não há synchronize. IDs numéricos são usados em pacientes,
-seguindo os exemplos do contrato; UUIDs existentes de usuários são preservados.
-
-Os testes unitários usam dublês tipados de PatientRepositoryPort, sem banco,
-rede ou ambiente. A regressão HTTP cobre permissões, status e envelopes. O
-script opcional scripts/smoke-docker.cjs valida em PostgreSQL temporário o CRUD,
-filtros, paginação, remoção lógica e CPF simultâneo em duas réplicas (201/409).
-A publicação na nuvem continua acompanhada pelo card #5, independentemente deste módulo.
-
-## Medicos
-
-POST /api/v1/doctors (admin) recebe name, email, password e crm. A criacao do usuario com perfil doctor e do registro profissional ocorre na mesma transacao PostgreSQL: CRM ou email duplicado retorna 409 (CRM_JA_CADASTRADO / EMAIL_JA_CADASTRADO), sem usuario orfao. A senha e armazenada apenas como hash e nunca aparece na resposta. O medico pode autenticar pelo login existente.
-
-GET /api/v1/doctors e GET /api/v1/doctors/:id aceitam qualquer usuario autenticado. Listagem usa data/meta, page (padrao 1), pageSize (padrao 20, maximo 100), filtro parcial name sem diferenciar maiusculas e ordem por ID. Caracteres de LIKE no filtro sao literais. ID profissional e numerico; user.id preserva o UUID da autenticacao existente. Nao ha PATCH/DELETE de medicos no contrato desta etapa.
-
-Nome tem limite de 120 caracteres, email de 160, senha minimo de 8 e CRM de 50; nome e CRM sao aparados, email e normalizado para minusculas. CRM e unico globalmente e comparado exatamente apos trim, sem impor formato estadual ausente no contrato. Campos roles enviados no cadastro nao concedem privilegios: o perfil sempre sera doctor.
-
-A migration create-doctors-table.ts cria o relacionamento unico com users. Execute npm run migration:run antes da execucao fora do Docker; no container o entrypoint aplica migrations. O teste node scripts/smoke-docker.cjs usa PostgreSQL descartavel e duas replicas para validar rollback, login, permissoes e concorrencia de CRM/email, preservando o banco local.
-
-## Autenticacao de publicacao sem chave JSON
-
-A politica da organizacao bloqueia a criacao de chaves permanentes. Com a substituicao aceita pelo professor, o deploy usa Workload Identity Federation (OIDC) e a identidade medclinic-deploy@medclinic-api-v1.iam.gserviceaccount.com. O segredo GCP_CREDENTIALS nao e utilizado. A identidade medclinic-run e a conta de execucao da API, separada da conta de publicacao.
-
-Configure as variaveis de Actions GCP_WORKLOAD_IDENTITY_PROVIDER e GCP_DEPLOY_SERVICE_ACCOUNT, alem das quatro variaveis de projeto/regiao/registro/servico. O job de publicacao recebe id-token: write para solicitar um token OIDC temporario; o build da imagem ocorre antes da autenticacao para nao incluir credenciais no contexto Docker. Arquivos gha-creds-*.json permanecem ignorados no Git e no Docker.
-
-O provedor aceita somente repositorio de ID 1427700678, proprietario de ID 81780978, evento push, ref refs/heads/main e workflow Cleitoncme/medclinic-api_V1/.github/workflows/deploy.yml@refs/heads/main. O vinculo de IAM usa o subject exato repo:Cleitoncme/medclinic-api_V1:ref:refs/heads/main. PRs, forks e a develop nao recebem acesso de publicacao. A politica de bloqueio de chaves permanece ativa.
-
-Permissoes: Cloud Run Developer no projeto; Artifact Registry Writer somente no repositorio medclinic; Service Account User somente na conta medclinic-run; Workload Identity User na conta medclinic-deploy somente para o subject autorizado. A autenticacao ainda precisa ser comprovada em uma execucao de push na main; configurar OIDC nao significa que a API ja esteja publicada.
-
-## Escalas de trabalho
-
-- GET /api/v1/doctors/:doctorId/work-schedule: qualquer usuario autenticado.
-- PUT /api/v1/doctors/:doctorId/work-schedule: somente admin; substitui toda a escala.
-- Corpo e resposta: {"shifts":[{"weekDay":2,"startTime":"08:00","endTime":"12:00","slotDurationMinutes":30}]}.
-- Lista vazia remove os turnos. Medico existente sem escala retorna {"shifts":[]}.
-- Horarios HH:MM sao locais da clinica (America/Sao_Paulo), sem conversao UTC. Dias inteiros 0–6; duracao numerica finita e positiva. Nao se exige divisibilidade do turno pela duracao.
-- Sobreposicoes no mesmo dia retornam 400 DADOS_INVALIDOS; turnos encostados sao aceitos. Medico inexistente retorna 404 RECURSO_NAO_ENCONTRADO.
-- Persistencia jsonb na linha do medico, com migration e substituicao em transacao usando bloqueio pessimista nessa linha. A criacao futura de agendamentos deve adquirir o mesmo bloqueio antes de ler os turnos. Escalas nao recalculam consultas previamente marcadas.
-- Testes unitarios usam dubles da porta; o smoke Docker verifica permissao, leitura entre replicas, preservacao da escala invalida, remocao e concorrencia com PostgreSQL real.
-
-## Criacao de agendamentos
-
-POST /api/v1/appointments permite admin e secretary. Recebe doctorId, patientId (inteiros) e startsAt ISO 8601 com fuso explicito; calcula endsAt pelo turno e fixa status scheduled. Responde 201 com instantes UTC. Horarios locais sao interpretados em America/Sao_Paulo.
-
-Validacao: existencia de medico/paciente (404), turno/grade/encaixe (422 HORARIO_FORA_DA_ESCALA), conflito do medico (409 HORARIO_INDISPONIVEL), conflito do paciente (409 PACIENTE_INDISPONIVEL). Entrada malformada retorna 400. Apenas cancelled deixa de ocupar horario; intervalos encostados sao aceitos.
-
-A porta transacional permite testes unitarios sem banco. O adapter usa READ COMMITTED, bloqueia medico e depois paciente e executa todas as leituras/gravações pelo mesmo EntityManager. O bloqueio do medico coordena com a substituicao da escala; o do paciente protege consultas com medicos diferentes. Inicios/fins sao armazenados em timestamptz e nao recalculados quando a escala muda. Indices parciais auxiliam a busca de conflitos; a garantia concorrente depende do protocolo de bloqueio em todos os futuros caminhos de escrita.
-
-Referencia conceitual consultada: [exemplo de aula do professor](https://github.com/marcomoura-senai/nestjs-clinica), main 7fa5d59 (27/10/2026), transacao e pessimistic_write no medico. Implementacao propria adaptada ao contrato, com bloqueio adicional do paciente e regras isoladas nos services. Nas proximas etapas, consultar novamente essa referencia antes de implementar.
-
-## Agenda, listagem e ciclo de vida
-
-- GET /api/v1/appointments: filtros opcionais doctorId, patientId, status, from, to, page e pageSize, combinados por AND; resposta data/meta. Ordenacao por startsAt e id crescentes. Doctor sem admin recebe somente consultas proprias, mesmo com filtro de outro medico.
-- GET /api/v1/appointments/:id: detalhe autenticado; doctor sem admin recebe 403 para consulta alheia. Identidade do usuario proprietario nao e exposta.
-- GET /api/v1/doctors/:doctorId/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD: escala e consultas nao canceladas, sem gerar slots nem paginar. Datas reais obrigatorias, em ordem e ate 31 dias incluindo ambas as pontas. Os limites abrangem dias inteiros em America/Sao_Paulo; o limite superior e a meia-noite seguinte, exclusiva. A mesma interpretacao de dias se aplica aos filtros opcionais da listagem.
-- PATCH /api/v1/appointments/:id/status: scheduled para in_progress/cancelled; in_progress para done/cancelled. Admin ou medico responsavel podem executar essas transicoes; secretary somente scheduled para cancelled. Estados done/cancelled sao finais.
-
-Entrada invalida retorna 400 DADOS_INVALIDOS; recurso ausente, 404 RECURSO_NAO_ENCONTRADO; falta de permissao, 403 ACESSO_NEGADO; transicao invalida, 422 TRANSICAO_INVALIDA. O ciclo e validado antes da permissao da transicao. Atualizacao usa transacao e bloqueio pessimista na consulta, evitando validar duas mudancas sobre um estado antigo. Cancelar libera o horario sem alterar startsAt/endsAt.
-
-Testes unitarios cobrem services e regras de negocio com minimo de 80% no workflow de PR para develop/main. Execute npm run test:cov. Para integracao, execute docker build -t medclinic-api-v1:agenda-status . e node scripts/smoke-docker.cjs medclinic-api-v1:agenda-status. O script cria PostgreSQL temporario e duas replicas, valida filtros, posse, limites locais, transicoes e corrida 200/422, e remove os containers temporarios ao terminar. Nao utiliza o banco da nuvem.
-
-Referencia do professor conferida novamente em 27/10/2026, main 7fa5d59. Como essa versao contem criacao de agendamentos, mas nao agenda/listagem/status, essas funcionalidades seguem o contrato 4.9.6/4.9.7 do documento de requisitos com implementacao propria.
-
-## Prontuario por vinculo
-
-POST /api/v1/patients/:patientId/medical-records recebe text nao vazio e cria registro do medico autenticado. O campo doctorId enviado no corpo e ignorado. Somente usuario com perfil doctor, cadastro profissional e consulta com o paciente em in_progress ou done pode escrever; consulta scheduled ou cancelled nao estabelece vinculo.
-
-GET /api/v1/patients/:patientId/medical-records retorna registros em data/meta, ordenados por createdAt e id decrescentes. Admin pode ler para auditoria; doctor precisa de vinculo; secretary isoladamente nao le. Para usuarios com multiplos perfis, admin autoriza leitura e doctor autoriza escrita apenas com vinculo; secretary nao revoga outros perfis. Paciente inexistente retorna 404, acesso negado 403 e texto/parametros invalidos 400. A autoria e vinculada ao medico do token, nunca ao payload.
-
-A migration create-medical-records-table cria tabela e indice de listagem. Migrations sao aplicadas pelo entrypoint; fora do Docker, execute npm run migration:run. Testes unitarios isolam o service por porta; o smoke com PostgreSQL temporario valida permissoes, vinculo, autoria, ordenacao e paginacao. O exemplo do professor (main 7fa5d59 consultada em 28/10/2026) fornece somente uma entidade inicial; o controle por vinculo segue o contrato do projeto com implementacao propria.
+No board, Done indica mudança testada e integrada à `develop`; os cards de documentação e validação de publicação permanecem abertos até a conclusão dessas tarefas. A aceitação dos PRs para `develop` foi confirmada pelo aluno com o professor.
