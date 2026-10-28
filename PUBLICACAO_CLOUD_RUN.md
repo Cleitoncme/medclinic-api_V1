@@ -2,9 +2,7 @@
 
 ## Estado desta entrega
 
-Docker e workflow estão preparados. O projeto medclinic-api-v1, o banco medclinic na instância Cloud SQL de teste e o repositório Docker medclinic em southamerica-east1 foram configurados. As identidades de execução/publicação e a federação OIDC estão configuradas. Ainda faltam imagem publicada, serviço Cloud Run, segredos de execução e evidência de deploy com URL pública.
-O usuário autorizou apenas recursos gratuitos. Não criar recursos pagos nem
-ativar faturamento pago como parte desta entrega.
+A infraestrutura inicial e um serviço Cloud Run foram configurados e publicados manualmente. O health público respondeu na validação inicial. As funcionalidades completas estão em develop e ainda precisam ser publicadas e verificadas pelo workflow após o PR final para main. A execução automática via OIDC permanece pendente de comprovação. A conta de teste e as cotas devem ser conferidas antes da entrega; não foi autorizado upgrade pago.
 
 Cloud Run possui franquia gratuita, mas não oferece um teto automático de R$ 0.
 Excesso de consumo, armazenamento de imagens e tráfego podem gerar cobrança em
@@ -54,31 +52,12 @@ revisões antigas e novas convivam durante uma troca de tráfego.
 Aplicar as configurações no painel Cloud Run ou por referências a Secret Manager.
 Não colocar JWT_SECRET, senha de banco ou senha do admin no YAML do workflow.
 
-## Configuração externa pendente
+## Verificações antes da entrega
 
-1. Entrar no console GCP e conferir elegibilidade a teste gratuito e condições
-   de faturamento. A publicação permanece pendente enquanto R$ 0 não puder ser
-   respeitado nas condições aceitas pelo usuário.
-2. Definir o ID do projeto, região e banco gerenciado com SSL. Configuração
-   sugerida para avaliação: Cloud Run com cobrança por requisição, mínimo de
-   instâncias zero, máximo um, uma vCPU e 512 MiB. Isso reduz consumo; não é um
-   limite financeiro. Não provisionar Cloud SQL automaticamente.
-3. Habilitar APIs do Cloud Run e Artifact Registry. Criar repositório Docker no
-   Artifact Registry e planejar retenção das imagens dentro da cota gratuita.
-4. Criar uma conta de serviço de execução e outra para o deploy. A identidade
-   de deploy precisa atualizar o serviço (Cloud Run Developer), publicar no
-   repositório (Artifact Registry Writer, limitado ao repositório) e atuar como
-   a conta de execução (Service Account User, limitada à conta). Não usar Owner.
-5. A criação de chaves JSON é bloqueada pela política iam.disableServiceAccountKeyCreation. O professor aceitou a substituição por OIDC, conforme confirmado pelo aluno. Não alterar a política; GCP_CREDENTIALS não é mais utilizado. O pool medclinic-github e provedor github aceitam apenas IDs 1427700678/81780978, push na main e o workflow deploy.yml. O vínculo Workload Identity User usa o subject exato repo:Cleitoncme/medclinic-api_V1:ref:refs/heads/main na conta medclinic-deploy.
-6. As seis **variables** do GitHub estão configuradas: GCP_PROJECT_ID, GCP_REGION, GAR_REPOSITORY, CLOUD_RUN_SERVICE, GCP_WORKLOAD_IDENTITY_PROVIDER e GCP_DEPLOY_SERVICE_ACCOUNT. Os dois últimos valores são projects/977210567831/locations/global/workloadIdentityPools/medclinic-github/providers/github e medclinic-deploy@medclinic-api-v1.iam.gserviceaccount.com. São identificadores, não credenciais.
-7. Fazer a primeira publicação controlada do container e configurar as variáveis
-   de runtime, SSL e seed antes de iniciar a API. O serviço precisa permitir
-   invocação pública para a bateria de avaliação; os endpoints privados continuam
-   protegidos pelo JWT da aplicação. Alterações de IAM/exposição exigem confirmação.
-   Registrar a URL e validar health/login. Desativar SEED_ADMIN_ON_START após o
-   primeiro seed é opcional; a repetição é idempotente.
-8. Só considerar a infraestrutura publicada após teste real da URL com banco
-   gerenciado. Anexar evidência ao card #5; esta etapa ainda não está concluída.
+- Conferir a disponibilidade do Cloud SQL de teste, sua data de expiração e as condições da conta, sem contratar recursos pagos.
+- Conferir as variáveis de Actions e as referências aos segredos no serviço sem expor valores. OIDC usa o pool e a conta de publicação configurados para push em main.
+- Após o PR final develop → main, acompanhar o workflow de publicação e verificar a revisão e a imagem implantadas.
+- Validar health, login, conexão ao banco e contrato público; registrar evidências e atualizar o card #5. O serviço inicial publicado não comprova o deploy automático nem a versão completa.
 
 ## Workflow e fluxo de branches
 
