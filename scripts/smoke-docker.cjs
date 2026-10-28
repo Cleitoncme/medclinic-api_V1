@@ -134,7 +134,7 @@ async function main() {
         '-tAc',
         'SELECT count(*) FROM migrations',
       ),
-      '6',
+      '7',
     );
     assert.equal(
       docker(
@@ -582,6 +582,16 @@ async function main() {
     console.log(
       'OK: agendamentos, fuso, grade, RBAC, conflitos de intervalos, cancelamento e escala sem alterar consulta; corridas medico/paciente 201/409 em duas replicas.',
     );
+    await require('./smoke-prontuario.cjs')({
+      urls,
+      jwt,
+      jwtSecret,
+      doctor,
+      secondDoctor,
+      patients,
+      doctorToken,
+      query,
+    });
     docker('restart', apps[0]);
     await waitFor(
       async () => (await login(`http://${docker('port', apps[0], '8080/tcp')}`)).ok,
