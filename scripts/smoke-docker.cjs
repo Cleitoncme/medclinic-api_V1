@@ -566,8 +566,19 @@ async function main() {
       query('SELECT starts_at,ends_at FROM appointments WHERE id=' + appointment.id),
       beforeSchedule,
     );
-    query("UPDATE appointments SET status='cancelled' WHERE id=" + appointment.id);
-    assert.equal((await appointmentRequest(appointmentInput)).status, 201);
+    await require('./smoke-agenda.cjs')({
+      urls,
+      jwt,
+      jwtSecret,
+      doctor,
+      secondDoctor,
+      appointment,
+      appointmentInput,
+      appointmentRequest,
+      query,
+      doctorToken,
+    });
+    assert.equal((await appointmentRequest(appointmentInput)).status, 409);
     console.log(
       'OK: agendamentos, fuso, grade, RBAC, conflitos de intervalos, cancelamento e escala sem alterar consulta; corridas medico/paciente 201/409 em duas replicas.',
     );

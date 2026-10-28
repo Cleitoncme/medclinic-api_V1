@@ -174,4 +174,15 @@ A porta transacional permite testes unitarios sem banco. O adapter usa READ COMM
 
 Referencia conceitual consultada: [exemplo de aula do professor](https://github.com/marcomoura-senai/nestjs-clinica), main 7fa5d59 (27/10/2026), transacao e pessimistic_write no medico. Implementacao propria adaptada ao contrato, com bloqueio adicional do paciente e regras isoladas nos services. Nas proximas etapas, consultar novamente essa referencia antes de implementar.
 
-Listagem, agenda e transicoes de status serao implementadas na etapa seguinte. O teste Docker utiliza apenas banco descartavel para simular cancelled e comprovar liberacao do horario.
+## Agenda, listagem e ciclo de vida
+
+- GET /api/v1/appointments: filtros opcionais doctorId, patientId, status, from, to, page e pageSize, combinados por AND; resposta data/meta. Ordenacao por startsAt e id crescentes. Doctor sem admin recebe somente consultas proprias, mesmo com filtro de outro medico.
+- GET /api/v1/appointments/:id: detalhe autenticado; doctor sem admin recebe 403 para consulta alheia. Identidade do usuario proprietario nao e exposta.
+- GET /api/v1/doctors/:doctorId/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD: escala e consultas nao canceladas, sem gerar slots nem paginar. Datas reais obrigatorias, em ordem e ate 31 dias incluindo ambas as pontas. Os limites abrangem dias inteiros em America/Sao_Paulo; o limite superior e a meia-noite seguinte, exclusiva. A mesma interpretacao de dias se aplica aos filtros opcionais da listagem.
+- PATCH /api/v1/appointments/:id/status: scheduled para in_progress/cancelled; in_progress para done/cancelled. Admin ou medico responsavel podem executar essas transicoes; secretary somente scheduled para cancelled. Estados done/cancelled sao finais.
+
+Entrada invalida retorna 400 DADOS_INVALIDOS; recurso ausente, 404 RECURSO_NAO_ENCONTRADO; falta de permissao, 403 ACESSO_NEGADO; transicao invalida, 422 TRANSICAO_INVALIDA. O ciclo e validado antes da permissao da transicao. Atualizacao usa transacao e bloqueio pessimista na consulta, evitando validar duas mudancas sobre um estado antigo. Cancelar libera o horario sem alterar startsAt/endsAt.
+
+Testes unitarios cobrem services e regras de negocio com minimo de 80% no workflow de PR para develop/main. Execute npm run test:cov. Para integracao, execute docker build -t medclinic-api-v1:agenda-status . e node scripts/smoke-docker.cjs medclinic-api-v1:agenda-status. O script cria PostgreSQL temporario e duas replicas, valida filtros, posse, limites locais, transicoes e corrida 200/422, e remove os containers temporarios ao terminar. Nao utiliza o banco da nuvem.
+
+Referencia do professor conferida novamente em 27/10/2026, main 7fa5d59. Como essa versao contem criacao de agendamentos, mas nao agenda/listagem/status, essas funcionalidades seguem o contrato 4.9.6/4.9.7 do documento de requisitos com implementacao propria.
