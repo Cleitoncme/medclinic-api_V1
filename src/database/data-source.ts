@@ -1,3 +1,5 @@
+import { MedicalRecordEntity } from '../entities/medical-record.entity';
+import { CreateMedicalRecordsTable1793275200000 } from './migrations/create-medical-records-table';
 import { AppointmentEntity } from '../entities/appointment.entity';
 import { CreateAppointmentsTable1793188800000 } from './migrations/create-appointments-table';
 import { AddDoctorWorkSchedule1793102400000 } from './migrations/add-doctor-work-schedule';
@@ -25,7 +27,7 @@ export const appDataSource = new DataSource({
   database: env.database.name,
   synchronize: false,
   logging: false,
-  entities: [User, PatientEntity, DoctorEntity, AppointmentEntity],
+  entities: [User, PatientEntity, DoctorEntity, AppointmentEntity, MedicalRecordEntity],
   migrations: [
     CreateUsersTable1726000000000,
     MigrateUserRoles1792670400000,
@@ -33,5 +35,6 @@ export const appDataSource = new DataSource({
     CreateDoctorsTable1792872000000,
     AddDoctorWorkSchedule1793102400000,
     CreateAppointmentsTable1793188800000,
+    CreateMedicalRecordsTable1793275200000,
   ],
 });

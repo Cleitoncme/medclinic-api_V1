@@ -186,3 +186,11 @@ Entrada invalida retorna 400 DADOS_INVALIDOS; recurso ausente, 404 RECURSO_NAO_E
 Testes unitarios cobrem services e regras de negocio com minimo de 80% no workflow de PR para develop/main. Execute npm run test:cov. Para integracao, execute docker build -t medclinic-api-v1:agenda-status . e node scripts/smoke-docker.cjs medclinic-api-v1:agenda-status. O script cria PostgreSQL temporario e duas replicas, valida filtros, posse, limites locais, transicoes e corrida 200/422, e remove os containers temporarios ao terminar. Nao utiliza o banco da nuvem.
 
 Referencia do professor conferida novamente em 27/10/2026, main 7fa5d59. Como essa versao contem criacao de agendamentos, mas nao agenda/listagem/status, essas funcionalidades seguem o contrato 4.9.6/4.9.7 do documento de requisitos com implementacao propria.
+
+## Prontuario por vinculo
+
+POST /api/v1/patients/:patientId/medical-records recebe text nao vazio e cria registro do medico autenticado. O campo doctorId enviado no corpo e ignorado. Somente usuario com perfil doctor, cadastro profissional e consulta com o paciente em in_progress ou done pode escrever; consulta scheduled ou cancelled nao estabelece vinculo.
+
+GET /api/v1/patients/:patientId/medical-records retorna registros em data/meta, ordenados por createdAt e id decrescentes. Admin pode ler para auditoria; doctor precisa de vinculo; secretary isoladamente nao le. Para usuarios com multiplos perfis, admin autoriza leitura e doctor autoriza escrita apenas com vinculo; secretary nao revoga outros perfis. Paciente inexistente retorna 404, acesso negado 403 e texto/parametros invalidos 400. A autoria e vinculada ao medico do token, nunca ao payload.
+
+A migration create-medical-records-table cria tabela e indice de listagem. Migrations sao aplicadas pelo entrypoint; fora do Docker, execute npm run migration:run. Testes unitarios isolam o service por porta; o smoke com PostgreSQL temporario valida permissoes, vinculo, autoria, ordenacao e paginacao. O exemplo do professor (main 7fa5d59 consultada em 28/10/2026) fornece somente uma entidade inicial; o controle por vinculo segue o contrato do projeto com implementacao propria.
