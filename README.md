@@ -12,7 +12,44 @@ Node.js 22.12+ da série 22, NestJS, TypeScript, PostgreSQL, TypeORM, JWT, bcryp
 
 O modelo contém usuários com UUID e perfis, pacientes com CPF único e exclusão lógica, médicos vinculados a usuários e escalas em JSONB, agendamentos com início/fim em `timestamptz` e registros de prontuário associados a paciente e médico autor. E-mail, CPF e CRM têm unicidade no banco. O cadastro do médico e seu usuário é transacional. A criação de agendamentos bloqueia médico e paciente para impedir conflitos sob concorrência; consultas canceladas liberam o horário.
 
+### Estrutura de pastas
+
+```text
+src/
+├── controllers/    # rotas e adaptação HTTP
+├── services/       # casos de uso e regras de negócio
+├── rules/          # regras compartilhadas pelos services
+├── domain/         # modelos e erros do domínio
+├── ports/          # contratos de persistência e serviços externos
+├── repositories/   # implementação das portas com TypeORM
+├── entities/       # mapeamento das tabelas
+├── database/       # configuração, migrations e seed
+├── adapters/       # implementações de senha e token
+├── modules/        # composição de dependências no NestJS
+├── guards/         # autenticação e autorização
+├── decorators/     # metadados de perfis
+├── filters/        # tradução centralizada de erros para HTTP
+├── dtos/           # tipos de dados de entrada e saída
+└── config/         # variáveis de ambiente
+tests/              # testes unitários e de regressão
+scripts/            # validações auxiliares, incluindo smoke com Docker
+.github/workflows/  # validação de PR e publicação
+```
+
+O vínculo entre médico e usuário permite autenticação e cadastro atômico; a escala em JSONB representa os turnos completos do médico. Consultas guardam instantes com fuso, preservando o horário mesmo quando a escala muda. A exclusão lógica de pacientes preserva referências históricas, enquanto restrições de unicidade no banco protegem CPF, CRM e e-mail também sob concorrência.
+
+### Convenções de nomes
+
+Pastas usam nomes minúsculos; arquivos compostos usam `kebab-case` e sufixos como `.controller.ts`, `.service.ts`, `.repository.ts`, `.entity.ts`, `.module.ts`, `.port.ts` e `.rules.ts`. As migrations usam nomes descritivos em `kebab-case`. Classes e tipos usam `PascalCase`; variáveis, funções e campos usam `camelCase`; constantes de configuração e tokens usam `UPPER_SNAKE_CASE`. As rotas usam nomes em inglês sob `/api/v1`, conforme o contrato, e as propriedades da API seguem seus nomes exatos.
+
 ## Execução local
+
+```sh
+git clone https://github.com/Cleitoncme/medclinic-api_V1.git
+cd medclinic-api_V1
+```
+
+Enquanto a entrega final não estiver incorporada à `main`, use `git checkout develop` após clonar para acessar a versão em desenvolvimento.
 
 1. Instale Node.js compatível e Docker Desktop. Copie `.env.example` para `.env` e preencha as variáveis, incluindo um `JWT_SECRET` próprio e os dados do administrador. Não versione o `.env`.
 2. Inicie o PostgreSQL: `docker compose up -d postgres`. O arquivo Compose inicia apenas o banco, não a API. Com `DATABASE_PORT=5434` no `.env`, acesse o banco local nessa porta. Ajuste se ela já estiver ocupada.
@@ -83,7 +120,7 @@ docker build -t medclinic-api-v1:pr .
 node scripts/smoke-docker.cjs medclinic-api-v1:pr
 ```
 
-Os unitários usam dublês, sem rede ou banco. O Vitest exige 80% em statements, branches, functions e lines nos services, use cases e arquivos de regras; o relatório HTML fica em `coverage/index.html`. Na verificação local de 28/10/2026, passaram 330 testes unitários e 17 de regressão; a cobertura foi 99,36% de instruções, 99,39% de ramificações e 100% de funções e linhas. O smoke cria PostgreSQL descartável e duas réplicas, testa migrations, permissões e concorrência e remove apenas seus próprios recursos.
+Os unitários usam dublês, sem rede ou banco. O Vitest inclui `tests/unit/**/*.test.ts` e calcula cobertura sobre `src/**/*.service.ts`, `src/**/*.usecase.ts` e `src/**/*.rules.ts`, pois concentram as regras de negócio. Controllers, entidades, adapters, migrations e testes não entram no recorte. O limite é 80% em statements, branches, functions e lines; o relatório HTML fica em `coverage/index.html`. Na verificação local de 28/10/2026, passaram 330 testes unitários e 17 de regressão; a cobertura foi 99,36% de instruções, 99,39% de ramificações e 100% de funções e linhas. O smoke cria PostgreSQL descartável e duas réplicas, testa migrations, permissões e concorrência e remove apenas seus próprios recursos.
 
 ## Fluxo e publicação
 
