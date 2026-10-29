@@ -1,6 +1,6 @@
 # MedClinic API
 
-API de clínica médica em NestJS e TypeScript, com autenticação, pacientes, médicos, escalas, agendamentos e prontuários. O projeto é uma implementação própria baseada no documento de requisitos e usa o [repositório do professor](https://github.com/marcomoura-senai/nestjs-clinica) como referência de estudo.
+API de clínica médica em NestJS e TypeScript, com autenticação, pacientes, médicos, escalas, agendamentos e prontuários.
 
 - [Board do projeto](https://github.com/users/Cleitoncme/projects/2)
 - [API no Cloud Run](https://medclinic-api-v1-977210567831.southamerica-east1.run.app/api/v1/health): serviço inicial publicado; a versão completa em `develop` depende do merge final e da validação do deploy automático.
