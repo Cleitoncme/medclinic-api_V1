@@ -2,7 +2,7 @@
 
 ## Estado desta entrega
 
-A infraestrutura inicial e um serviço Cloud Run foram configurados e publicados manualmente. O health público respondeu na validação inicial. As funcionalidades completas estão em develop e ainda precisam ser publicadas e verificadas pelo workflow após o PR final para main. A execução automática via OIDC permanece pendente de comprovação. A conta de teste e as cotas devem ser conferidas antes da entrega; não foi autorizado upgrade pago.
+A infraestrutura inicial e um serviço Cloud Run foram configurados e publicados manualmente. O health público respondeu na validação inicial. As funcionalidades completas estão em develop e ainda precisam ser publicadas e verificadas pelo workflow após o PR final para main. A execução automática usando chave JSON permanece pendente de comprovação. A conta de teste e as cotas devem ser conferidas antes da entrega; não foi autorizado upgrade pago.
 
 Cloud Run possui franquia gratuita, mas não oferece um teto automático de R$ 0.
 Excesso de consumo, armazenamento de imagens e tráfego podem gerar cobrança em
@@ -55,7 +55,7 @@ Não colocar JWT_SECRET, senha de banco ou senha do admin no YAML do workflow.
 ## Verificações antes da entrega
 
 - Conferir a disponibilidade do Cloud SQL de teste, sua data de expiração e as condições da conta, sem contratar recursos pagos.
-- Conferir as variáveis de Actions e as referências aos segredos no serviço sem expor valores. OIDC usa o pool e a conta de publicação configurados para push em main.
+- Conferir as variáveis de Actions, o secret GCP_SERVICE_ACCOUNT_KEY e as referências aos segredos no serviço sem expor valores. A chave JSON deve ser adicionada pelo proprietário em Settings → Secrets and variables → Actions e mantida fora do repositório.
 - Após o PR final develop → main, acompanhar o workflow de publicação e verificar a revisão e a imagem implantadas.
 - Validar health, login, conexão ao banco e contrato público; registrar evidências e atualizar o card #5. O serviço inicial publicado não comprova o deploy automático nem a versão completa.
 
@@ -63,7 +63,7 @@ Não colocar JWT_SECRET, senha de banco ou senha do admin no YAML do workflow.
 
 .github/workflows/deploy.yml dispara exclusivamente por push em main. O merge
 final develop → main gera esse push. Não há deploy de produção por PR nem por
-push em develop. O workflow constrói a imagem, autentica via OIDC com credenciais temporárias,
+push em develop. O workflow constrói a imagem, autentica com a chave JSON da conta de serviço guardada no secret GCP_SERVICE_ACCOUNT_KEY,
 publica no Artifact Registry com tag do commit, atualiza o serviço existente
 usando deploy-cloudrun e verifica /api/v1/health.
 
