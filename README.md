@@ -87,6 +87,6 @@ Os unitários usam dublês, sem rede ou banco. O Vitest exige 80% em statements,
 
 ## Fluxo e publicação
 
-Branches de trabalho partem de `develop`; PRs são validados para `develop` e `main`. Depois da revisão final, um PR de `develop` para `main` dispara o workflow de publicação em push. O deploy usa Workload Identity Federation/OIDC, sem chave JSON permanente; a execução automática na `main` e a API completa publicada ainda precisam ser verificadas. O ambiente Cloud SQL de teste tem prazo limitado; confira sua disponibilidade antes da avaliação. O projeto não pressupõe contratação de recursos pagos.
+Branches de trabalho partem de `develop`; PRs são validados para `develop` e `main`. Depois da revisão final, um PR de `develop` para `main` dispara o workflow de publicação em push. O deploy autentica com a chave JSON da conta de serviço no secret `GCP_SERVICE_ACCOUNT_KEY` do GitHub Actions; a execução automática na `main` e a API completa publicada ainda precisam ser verificadas. A chave é uma credencial de longa duração e não deve ser versionada. O ambiente Cloud SQL de teste tem prazo limitado; confira sua disponibilidade antes da avaliação. O projeto não pressupõe contratação de recursos pagos.
 
 No board, Done indica mudança testada e integrada à `develop`; os cards de documentação e validação de publicação permanecem abertos até a conclusão dessas tarefas. A aceitação dos PRs para `develop` foi confirmada pelo aluno com o professor.
