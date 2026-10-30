@@ -60,36 +60,6 @@ revisões antigas e novas convivam durante uma troca de tráfego.
 Aplicar as configurações no painel Cloud Run ou por referências a Secret Manager.
 Não colocar JWT_SECRET, senha de banco ou senha do admin no YAML do workflow.
 
-## Configuração externa pendente
-
-1. Entrar no console GCP e conferir elegibilidade a teste gratuito e condições
-   de faturamento. A publicação permanece pendente enquanto R$ 0 não puder ser
-   respeitado nas condições aceitas pelo usuário.
-2. Definir o ID do projeto, região e banco gerenciado com SSL. Configuração
-   sugerida para avaliação: Cloud Run com cobrança por requisição, mínimo de
-   instâncias zero, máximo um, uma vCPU e 512 MiB. Isso reduz consumo; não é um
-   limite financeiro. Não provisionar Cloud SQL automaticamente.
-3. Habilitar APIs do Cloud Run e Artifact Registry. Criar repositório Docker no
-   Artifact Registry e planejar retenção das imagens dentro da cota gratuita.
-4. Criar uma conta de serviço de execução e outra para o deploy. A identidade
-   de deploy precisa atualizar o serviço (Cloud Run Developer), publicar no
-   repositório (Artifact Registry Writer, limitado ao repositório) e atuar como
-   a conta de execução (Service Account User, limitada à conta). Não usar Owner.
-5. Para atender ao fluxo do documento, cadastrar a chave JSON da conta de deploy
-   no secret GCP_CREDENTIALS do GitHub. Fazer a criação e o cadastro diretamente
-   nos painéis; não enviar a chave no chat nem versioná-la. Federação de identidade
-   pode substituir a chave em uma melhoria futura, caso aceita pelo professor.
-6. Configurar estas **variables** do GitHub: GCP_PROJECT_ID, GCP_REGION,
-   GAR_REPOSITORY e CLOUD_RUN_SERVICE. São identificadores, não credenciais.
-7. Fazer a primeira publicação controlada do container e configurar as variáveis
-   de runtime, SSL e seed antes de iniciar a API. O serviço precisa permitir
-   invocação pública para a bateria de avaliação; os endpoints privados continuam
-   protegidos pelo JWT da aplicação. Alterações de IAM/exposição exigem confirmação.
-   Registrar a URL e validar health/login. Desativar SEED_ADMIN_ON_START após o
-   primeiro seed é opcional; a repetição é idempotente.
-8. Só considerar a infraestrutura publicada após teste real da URL com banco
-   gerenciado. Anexar evidência ao card #5; esta etapa ainda não está concluída.
-
 ## Workflow e fluxo de branches
 
 .github/workflows/deploy.yml dispara exclusivamente por push em main. O merge

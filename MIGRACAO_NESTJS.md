@@ -2,7 +2,7 @@
 
 Esta entrega substitui o bootstrap Express por NestFactory/AppModule, registra controllers e providers em módulos, recebe dependências nos construtores, usa guards para autenticação/RBAC e um filtro global de exceções. Entidade, migration e dados existentes são preservados.
 
-O código foi desenvolvido a partir da API do aluno. O repositório do professor é referência de conceitos; módulos e soluções não foram transplantados.
+O código foi desenvolvido a partir da API do Mini Projeto. O repositório do professor foi utilizado como referência de conceitos; módulos e soluções não foram transplantados.
 
 ## Executar
 
@@ -23,10 +23,9 @@ Mantidos os endpoints `/health`, `/auth/register`, `/auth/login`, `/users/me`, `
 ## Referências
 
 - Documentação de NestJS: https://docs.nestjs.com/first-steps e https://docs.nestjs.com/guards.
-- Referência didática indicada pelo aluno: https://github.com/marcomoura-senai/nestjs-clinica/tree/feat/appointment.
 
 NestJS continua sendo TypeScript. O documento de requisitos lido permite Express ou NestJS; a adoção de NestJS atende à decisão posterior do aluno.
 
 ## ValidaÃ§Ã£o em 20/10/2026
 
-CompilaÃ§Ã£o e sete testes de regressÃ£o passaram; ESLint passou. As duas vulnerabilidades transitivas inicialmente apontadas foram corrigidas com npm audit fix sem force; o audit terminou com zero vulnerabilidades. O banco real e o seed nÃ£o foram executados.
+CompilaÃ§Ã£o e sete testes de regressÃ£o passaram; ESLint passou. As duas vulnerabilidades transitivas inicialmente apontadas foram corrigidas com npm audit fix sem force; o audit terminou com zero vulnerabilidades. O banco real e o seed não foram executados.
