@@ -9,6 +9,10 @@ import type { Response } from 'express';
 import { QueryFailedError } from 'typeorm';
 import { DomainError, type ErrorCode } from '../domain/domain-error';
 const statuses: Record<ErrorCode, number> = {
+  HORARIO_FORA_DA_ESCALA: 422,
+  HORARIO_INDISPONIVEL: 409,
+  PACIENTE_INDISPONIVEL: 409,
+  TRANSICAO_INVALIDA: 422,
   DADOS_INVALIDOS: 400,
   NAO_AUTENTICADO: 401,
   CREDENCIAIS_INVALIDAS: 401,
@@ -16,6 +20,7 @@ const statuses: Record<ErrorCode, number> = {
   RECURSO_NAO_ENCONTRADO: 404,
   EMAIL_JA_CADASTRADO: 409,
   CPF_JA_CADASTRADO: 409,
+  CRM_JA_CADASTRADO: 409,
 };
 @Catch()
 export class AppExceptionFilter implements ExceptionFilter {
@@ -43,14 +48,23 @@ export class AppExceptionFilter implements ExceptionFilter {
       exception instanceof QueryFailedError &&
       exception.driverError &&
       Reflect.get(exception.driverError, 'code') === '23505' &&
-      ['UQ_users_email', 'UQ_patients_cpf'].includes(
+      ['UQ_users_email', 'UQ_patients_cpf', 'UQ_doctors_crm'].includes(
         String(Reflect.get(exception.driverError, 'constraint')),
       )
     ) {
       statusCode = 409;
       const patientCpf = Reflect.get(exception.driverError, 'constraint') === 'UQ_patients_cpf';
-      error = patientCpf ? 'CPF_JA_CADASTRADO' : 'EMAIL_JA_CADASTRADO';
-      message = patientCpf ? 'CPF já cadastrado.' : 'E-mail já cadastrado.';
+      const doctorCrm = Reflect.get(exception.driverError, 'constraint') === 'UQ_doctors_crm';
+      error = patientCpf
+        ? 'CPF_JA_CADASTRADO'
+        : doctorCrm
+          ? 'CRM_JA_CADASTRADO'
+          : 'EMAIL_JA_CADASTRADO';
+      message = patientCpf
+        ? 'CPF já cadastrado.'
+        : doctorCrm
+          ? 'CRM ja cadastrado.'
+          : 'E-mail já cadastrado.';
     } else {
       this.logger.error(
         'Falha inesperada.',
