@@ -3,7 +3,7 @@
 API de clínica médica em NestJS e TypeScript, com autenticação, pacientes, médicos, escalas, agendamentos e prontuários.
 
 - [Board do projeto](https://github.com/users/Cleitoncme/projects/2)
-- [API no Cloud Run](https://medclinic-api-v1-977210567831.southamerica-east1.run.app/api/v1/health): serviço inicial publicado; a versão completa em `develop` depende do merge final e da validação do deploy automático.
+- [API no Cloud Run](https://medclinic-api-v1-977210567831.southamerica-east1.run.app/api/v1/health): versão completa publicada no Cloud Run; health, login administrativo e consultas autenticadas verificados.
 - [Publicação e infraestrutura](PUBLICACAO_CLOUD_RUN.md) · [Arquitetura testável](ARQUITETURA_TESTAVEL.md) · [Migração para NestJS](MIGRACAO_NESTJS.md)
 
 ## Tecnologias e arquitetura
@@ -49,7 +49,7 @@ git clone https://github.com/Cleitoncme/medclinic-api_V1.git
 cd medclinic-api_V1
 ```
 
-Enquanto a entrega final não estiver incorporada à `main`, use `git checkout develop` após clonar para acessar a versão em desenvolvimento.
+A branch `main` contém a versão de entrega. A branch `develop` reúne o trabalho de desenvolvimento.
 
 1. Instale Node.js compatível e Docker Desktop. Copie `.env.example` para `.env` e preencha as variáveis, incluindo um `JWT_SECRET` próprio e os dados do administrador. Não versione o `.env`.
 2. Inicie o PostgreSQL: `docker compose up -d postgres`. O arquivo Compose inicia apenas o banco, não a API. Com `DATABASE_PORT=5434` no `.env`, acesse o banco local nessa porta. Ajuste se ela já estiver ocupada.
@@ -124,6 +124,6 @@ Os unitários usam dublês, sem rede ou banco. O Vitest inclui `tests/unit/**/*.
 
 ## Fluxo e publicação
 
-Branches de trabalho partem de `develop`; PRs são validados para `develop` e `main`. Depois da revisão final, um PR de `develop` para `main` dispara o workflow de publicação em push. O deploy autentica com a chave JSON da conta de serviço no secret `GCP_SERVICE_ACCOUNT_KEY` do GitHub Actions; a execução automática na `main` e a API completa publicada ainda precisam ser verificadas. A chave é uma credencial de longa duração e não deve ser versionada. O ambiente Cloud SQL de teste tem prazo limitado; confira sua disponibilidade antes da avaliação. O projeto não pressupõe contratação de recursos pagos.
+Branches de trabalho partem de `develop`; PRs são validados para `develop` e `main`. O PR final de `develop` para `main` foi incorporado, e o push disparou o workflow de publicação. O deploy autentica com a chave JSON da conta de serviço no secret `GCP_SERVICE_ACCOUNT_KEY` do GitHub Actions; a publicação da versão completa foi concluída após uma nova tentativa, com health aprovado. Login administrativo e listagens autenticadas foram verificados na API publicada. A chave é uma credencial de longa duração e não deve ser versionada. O ambiente Cloud SQL de teste tem prazo limitado; confira sua disponibilidade antes da avaliação. O projeto não pressupõe contratação de recursos pagos.
 
-No board, Done indica mudança testada e integrada à `develop`; os cards de documentação e validação de publicação permanecem abertos até a conclusão dessas tarefas. A aceitação dos PRs para `develop` foi confirmada pelo aluno com o professor.
+No board, Done indica uma tarefa concluída; a validação final e a documentação são acompanhadas nos respectivos cards. A aceitação dos PRs para `develop` foi confirmada pelo aluno com o professor.
