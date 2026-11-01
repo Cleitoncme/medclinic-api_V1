@@ -1,0 +1,40 @@
+import { MedicalRecordEntity } from '../entities/medical-record.entity';
+import { CreateMedicalRecordsTable1793275200000 } from './migrations/create-medical-records-table';
+import { AppointmentEntity } from '../entities/appointment.entity';
+import { CreateAppointmentsTable1793188800000 } from './migrations/create-appointments-table';
+import { AddDoctorWorkSchedule1793102400000 } from './migrations/add-doctor-work-schedule';
+import { DoctorEntity } from '../entities/doctor.entity';
+import { CreateDoctorsTable1792872000000 } from './migrations/create-doctors-table';
+import 'reflect-metadata';
+
+import { DataSource } from 'typeorm';
+import { PatientEntity } from '../entities/patient.entity';
+import { CreatePatientsTable1792785600000 } from './migrations/create-patients-table';
+
+import { MigrateUserRoles1792670400000 } from './migrations/migrate-user-roles';
+import { env } from '../config/env';
+import { User } from '../entities/user.entity';
+import { CreateUsersTable1726000000000 } from './migrations/create-users-table';
+
+export const appDataSource = new DataSource({
+  type: 'postgres',
+  host: env.database.host,
+  port: env.database.port,
+  username: env.database.user,
+  password: env.database.password,
+  ssl: env.database.ssl,
+  connectTimeoutMS: 10000,
+  database: env.database.name,
+  synchronize: false,
+  logging: false,
+  entities: [User, PatientEntity, DoctorEntity, AppointmentEntity, MedicalRecordEntity],
+  migrations: [
+    CreateUsersTable1726000000000,
+    MigrateUserRoles1792670400000,
+    CreatePatientsTable1792785600000,
+    CreateDoctorsTable1792872000000,
+    AddDoctorWorkSchedule1793102400000,
+    CreateAppointmentsTable1793188800000,
+    CreateMedicalRecordsTable1793275200000,
+  ],
+});
